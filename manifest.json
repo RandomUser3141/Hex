@@ -2,7 +2,7 @@
     "id": "hex",
     "name": "Hex",
     "author": ["Ashley"],
-    "description": "Searches Balatro seeds.",
+    "description": "does litteral nothing, for now",
     "prefix": "hex",
     "main_file": "main.lua",
     "version": "0.0.1",
