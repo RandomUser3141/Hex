@@ -1,0 +1,10 @@
+{
+    "id": "hex",
+    "name": "Hex",
+    "author": ["Ashley"],
+    "description": "Searches Balatro seeds.",
+    "prefix": "hex",
+    "main_file": "main.lua",
+    "version": "0.0.1",
+    "priority": 0
+}
