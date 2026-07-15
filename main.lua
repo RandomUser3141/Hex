@@ -160,11 +160,12 @@ end
 
 SMODS.Atlas{
     key = "HexJokers",
-    path = "jokers.png",
+    path = "Jokers.png",
     px = 71,
     py = 95,
 }
 
+<<<<<<< HEAD
 SMODS.Atlas{
     key = "HexPlanetsSpectrals",
     path = "Planets_and_Spectrals.png",
@@ -1517,11 +1518,30 @@ SMODS.Joker{
 
     rarity = 1,
     cost = 4,
+=======
+SMODS.Joker{
+    key = "green_screen",
+    loc_txt = {
+        name = "Green Screen",
+        text = {
+            "This Joker gains {X:mult,C:white}X1{} Mult",
+            "every time you play a",
+            "{C:attention}Full House{}",
+            "(Currently {X:mult,C:white}X#1#{} Mult)"
+        }
+    },
+    config = { extra = { Xmult = 1, Xmult_gain = 1 } },
+    atlas = "HexJokers",
+    pos = { x = 0, y = 0 }, -- first frame in the atlas
+    rarity = 4,             -- 1 common, 2 uncommon, 3 rare, 4 legendary
+    cost = 20,
+>>>>>>> 454a8dd0977e417667c154942cd3be3de04d541c
     unlocked = true,
     discovered = true,
     blueprint_compat = true,
     eternal_compat = true,
 
+<<<<<<< HEAD
     -- Only appears after Cavendish breaks
     in_pool = function(self)
         return G.GAME and G.GAME.cavendish_broken
@@ -1682,6 +1702,9 @@ SMODS.Joker{
     eternal_compat = true,
 
     calculate = function(self, card, context)
+=======
+    calculate = function(self, card, context)
+>>>>>>> 454a8dd0977e417667c154942cd3be3de04d541c
         -- Apply the current Xmult when this joker scores
         if context.joker_main then
             return {
@@ -1689,6 +1712,7 @@ SMODS.Joker{
             }
         end
 
+<<<<<<< HEAD
         -- Grow permanently whenever a scored card has the Bonus enhancement
         if context.individual and context.cardarea == G.play and not context.blueprint then
             if context.other_card.config.center.key == "m_bonus" then
@@ -1829,6 +1853,8 @@ SMODS.Joker{
             }
         end
 
+=======
+>>>>>>> 454a8dd0977e417667c154942cd3be3de04d541c
         -- Grow permanently whenever a Full House is played
         if context.before and next(context.poker_hands["Full House"]) and not context.blueprint then
             card.ability.extra.Xmult = card.ability.extra.Xmult + card.ability.extra.Xmult_gain
