@@ -1,10 +1,13 @@
 {
     "id": "hex",
     "name": "Hex",
-    "author": ["Ashley"],
-    "description": "does litteral nothing, for now",
+    "author": ["Ashley", "Lucian"],
+    "description": "BoObIEeS",
     "prefix": "hex",
     "main_file": "main.lua",
-    "version": "0.0.1",
-    "priority": 0
+    "version": "0.0.2",
+    "priority": 0,
+    "dependencies": [
+        "Amulet"
+    ]
 }
