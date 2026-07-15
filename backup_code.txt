@@ -1847,10 +1847,10 @@ SMODS.Joker{
 
 
 SMODS.Joker{
-    key = "exponent_joker",
+    key = "lemniscate",
 
     loc_txt = {
-        name = "Exponent Joker",
+        name = "Lemniscate",
         text = {
             "Raises final Mult to the power of {C:purple}^#1#{}",
             "Gains {C:purple}+0.01{} power",
@@ -1903,7 +1903,7 @@ SMODS.Joker{
 
         end
 
-        -- Applied when Exponent Joker itself scores, in its actual position
+        -- Applied when this  Joker itself scores, in its actual position
         -- among the Joker slots, rather than being forced to the very end
         -- of scoring. Jokers to its left have already modified Mult by the
         -- time this power is applied; Jokers to its right build on top of
@@ -3485,6 +3485,254 @@ SMODS.Consumable{
 
 
 
+-- Rigel: creates 2 Negative Planet cards, 2 Negative Tarot cards, and 1
+-- Negative Spectral card, staggered by a short delay each (same
+-- staggering technique Proxima Centauri already uses above for its own
+-- two Negative Jokers) so their materialize animations don't perfectly
+-- overlap. Unlike Negative Jokers (which are exempt from the Joker slot
+-- limit), Negative consumables still count against the normal
+-- consumable slot limit, so each creation is individually gated on
+-- there being room in G.consumeables at the moment it actually fires --
+-- a card queued up before the area fills up would otherwise just be
+-- silently lost. SMODS.create_card with only `set` (no `key`) behaves
+-- like a normal draw from that type's pool -- the same shortcut Black
+-- Seal's Spectral grant elsewhere in this file uses -- so every card
+-- here is a genuinely random member of its type, just always Negative.
+SMODS.Consumable{
+    key = "rigel",
+    set = "star",
+
+    atlas = "HexStarsGalaxies",
+    pos = { x = 6, y = 1 },
+
+    unlocked = true,
+    discovered = true,
+
+    in_pool = function(self)
+        return false -- never naturally drawn from a pool; only ever handed out via the Spectral/Arcana pack hook
+    end,
+
+    loc_txt = {
+        name = "Rigel",
+        text = {
+            "Creates {C:attention}2{} {C:attention}Negative{}",
+            "Planet cards, {C:attention}2{} {C:attention}Negative{}",
+            "Tarot cards, and {C:attention}1{}",
+            "{C:attention}Negative{} Spectral card",
+        }
+    },
+
+    can_use = function(self, card)
+        return true
+    end,
+
+    use = function(self, card)
+        local to_create = { "Planet", "Planet", "Tarot", "Tarot", "Spectral" }
+
+        for i, card_type in ipairs(to_create) do
+            G.E_MANAGER:add_event(Event({
+                trigger = "after",
+                delay = 0.2 * i,
+                func = function()
+                    if G.consumeables then
+                        -- Deliberately no slot-limit check here -- Rigel
+                        -- always creates all 5 cards regardless of how
+                        -- full the consumable area already is, the same
+                        -- way Negative Jokers ignore the Joker slot limit
+                        -- elsewhere in this file.
+                        local new_card = SMODS.create_card({
+                            set = card_type,
+                            area = G.consumeables
+                        })
+
+                        new_card:set_edition({ negative = true }, true)
+
+                        G.consumeables:emplace(new_card)
+                    end
+                    return true
+                end
+            }))
+        end
+
+        card_eval_status_text(card, "extra", nil, nil, nil, {
+            message = "+5 Negative",
+            colour = G.C.STAR
+        })
+    end,
+}
+
+-- Arcturus: permanently grants +1 consumable slot, the same effect the
+-- vanilla Crystal Ball voucher gives -- but as a Star card rather than a
+-- voucher, it isn't limited to a single purchase, so every additional
+-- copy used stacks another +1 on top, uncapped. Straightforward direct
+-- bump of G.consumeables.config.card_limit, the same field Crystal Ball
+-- itself raises.
+SMODS.Consumable{
+    key = "arcturus",
+    set = "star",
+
+    atlas = "HexStarsGalaxies",
+    pos = { x = 7, y = 1 },
+
+    unlocked = true,
+    discovered = true,
+
+    in_pool = function(self)
+        return false -- never naturally drawn from a pool; only ever handed out via the Spectral/Arcana pack hook
+    end,
+
+    loc_txt = {
+        name = "Arcturus",
+        text = {
+            "Permanently gain",
+            "{C:attention}+1{} consumable slot",
+        }
+    },
+
+    can_use = function(self, card)
+        return true
+    end,
+
+    use = function(self, card)
+        if G.consumeables and G.consumeables.config then
+            G.consumeables.config.card_limit = G.consumeables.config.card_limit + 1
+        end
+
+        card_eval_status_text(card, "extra", nil, nil, nil, {
+            message = "+1 Slot",
+            colour = G.C.STAR
+        })
+    end,
+}
+
+-- Procyon: disables the next Boss Blind encountered. Stores a stacking
+-- charge counter (G.GAME.hex_procyon_charges) rather than a single flag,
+-- so using multiple copies of this card queues up multiple future Boss
+-- Blind disables rather than only ever affecting one. The actual
+-- disabling happens in the Game:update hook further down the file, right
+-- alongside Fractal's own boss-disable poll -- same Blind:disable() call
+-- Chicot/Fractal already use, just gated on `charges > 0` instead of a
+-- permanent "used" flag, and decremented by 1 every time it actually
+-- fires. Checking `not G.GAME.blind.disabled` (same guard Fractal uses)
+-- naturally prevents this from double-decrementing on later frames once
+-- a given Boss Blind is already disabled -- the charge is only spent the
+-- one frame the disable actually happens.
+SMODS.Consumable{
+    key = "procyon",
+    set = "star",
+
+    atlas = "HexStarsGalaxies",
+    pos = { x = 8, y = 1 },
+
+    unlocked = true,
+    discovered = true,
+
+    in_pool = function(self)
+        return false -- never naturally drawn from a pool; only ever handed out via the Spectral/Arcana pack hook
+    end,
+
+    loc_txt = {
+        name = "Procyon",
+        text = {
+            "The next {C:attention}Boss Blind{}",
+            "is {C:attention}disabled{}",
+        }
+    },
+
+    can_use = function(self, card)
+        return true
+    end,
+
+    use = function(self, card)
+        G.GAME.hex_procyon_charges = (G.GAME.hex_procyon_charges or 0) + 1
+
+        -- If a Boss Blind is already active/selected right now, disable
+        -- it immediately rather than waiting up to a frame -- same
+        -- immediate-apply treatment Fractal's own use function gives its
+        -- currently-active Boss Blind.
+        if G.GAME.blind and G.GAME.blind.boss and not G.GAME.blind.disabled then
+            G.GAME.blind:disable()
+            G.GAME.hex_procyon_charges = G.GAME.hex_procyon_charges - 1
+        end
+
+        card_eval_status_text(card, "extra", nil, nil, nil, {
+            message = "Boss Disabled!",
+            colour = G.C.STAR
+        })
+    end,
+}
+
+-- Polaris: finds whichever poker hand type has been played the most
+-- times so far this run (G.GAME.hands[key].played, vanilla's own
+-- cumulative play counter -- the same field the "Most Played Hand" stat
+-- reads), and permanently raises that hand's base Chips and Mult to the
+-- power of 1.1. Unlike Eclipse (which tetrates -- arrow(2, ...) -- every
+-- hand's Chips/Mult at once), this only ever touches the single most-
+-- played hand, and uses ordinary exponentiation: arrow(1, 1.1) is
+-- Amulet's OmegaNum power operator (arrow(1, n) = ^n), NOT arrow(2, ...)
+-- which is tetration (^^). If no hand has been played yet this run
+-- (every `played` count is 0), the first hand encountered while
+-- scanning is used as a fallback so this never silently does nothing.
+SMODS.Consumable{
+    key = "polaris",
+    set = "star",
+
+    atlas = "HexStarsGalaxies",
+    pos = { x = 9, y = 1 },
+
+    unlocked = true,
+    discovered = true,
+
+    in_pool = function(self)
+        return false -- never naturally drawn from a pool; only ever handed out via the Spectral/Arcana pack hook
+    end,
+
+    loc_txt = {
+        name = "Polaris",
+        text = {
+            "Your {C:attention}most played{}",
+            "poker hand permanently",
+            "gains {C:attention}^1.1{}",
+            "{C:chips}Chips{} and {C:mult}Mult{}",
+        }
+    },
+
+    can_use = function(self, card)
+        return true
+    end,
+
+    use = function(self, card)
+        local best_key, best_played = nil, -1
+
+        for k, h in pairs(G.GAME.hands) do
+            if h.played and h.played > best_played then
+                best_played = h.played
+                best_key = k
+            end
+        end
+
+        if best_key then
+            local hand = G.GAME.hands[best_key]
+
+            if hand.chips then
+                hand.chips = to_big(hand.chips):arrow(1, 1.1)
+            end
+            if hand.mult then
+                hand.mult = to_big(hand.mult):arrow(1, 1.1)
+            end
+        end
+
+        card_eval_status_text(card, "extra", nil, nil, nil, {
+            message = "^1.1",
+            colour = G.C.STAR
+        })
+    end,
+}
+
+
+
+
+
 -- Human-readable names for each hyperoperator level, used in the
 -- Hyperbolic loc text and status messages.
 local hex_operator_names = {
@@ -3566,7 +3814,7 @@ if SMODS.Scoring_Calculation then
                 return big(chips) * big(mult)
             end
 
-            -- level 1 -> arrow(2) = ^, level 2 -> arrow(3) = ^^, etc.
+            -- level 1 -> arrow(1) = ^, level 1 -> arrow(1) = ^^, etc.
             return to_big(chips):arrow(level, mult)
         end,
         -- NOTE: the base game's operator-refresh function only ever reads
@@ -4891,6 +5139,21 @@ function Game:update(dt)
     and G.GAME.blind.boss
     and not G.GAME.blind.disabled then
         G.GAME.blind:disable()
+    end
+
+    -- Procyon: while charges remain, neutralizes every Boss Blind it
+    -- encounters (one charge per Blind), the same Blind:disable() poll
+    -- Fractal uses just above -- see the comment on Procyon's own
+    -- definition above for why a stacking charge counter is used instead
+    -- of a permanent flag. `not G.GAME.blind.disabled` (the same guard
+    -- Fractal's poll relies on) keeps this from spending more than one
+    -- charge on the same Boss Blind across multiple frames.
+    if G.GAME and (G.GAME.hex_procyon_charges or 0) > 0
+    and G.GAME.blind
+    and G.GAME.blind.boss
+    and not G.GAME.blind.disabled then
+        G.GAME.blind:disable()
+        G.GAME.hex_procyon_charges = G.GAME.hex_procyon_charges - 1
     end
 
     -- Polydactyly: while owned, removes the cap on how many cards can be

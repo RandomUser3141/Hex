@@ -1,12 +1,6 @@
 Name ideas:
 
-number theory
-
-Atlas
-
 Hamiltonian
-
-Banach Space
 
 Lie group 
 
@@ -22,11 +16,7 @@ Cantor's set
 
 Hypergeometric function
 
-Quaternions
-
 Euler's constant
-
-Lemniscate
 
 Khinchin's constant
 
@@ -62,7 +52,7 @@ Entropy - squares every owneded jokers value, chips, mult, Xmult, ^mult, and so 
 
 Echo - retrigger all Mythic and below rarity jokers by +1 additional time, peramently, if joker is retriggeerable (stacks if this ritual card is used again) (if you play this card than pick up a joker it still retriggers it)
 
-Singularity - all scaleing jokers scales as O(n^a) where a is the the amount of times this ritual card has been used +1 (starts at 2)
+Singularity - all scaleing jokers scales as O(n^a) where a is the the amount of times this ritual card has been used +1 (starts at 2 after one use)
 
 Ascension - +5 joker slots, +5 Consuamble slots, +5 hands every round, +5 discards every round, +5 hand size, +3 selection limit, and X50 money
 
@@ -100,11 +90,15 @@ Lucky Duckie - all cards that are lucky numbers give 1.75 Xchips (ace,3,7,9)
 
 Slot Machine - 1 in 4 chance to give X6 chips every hand played
 
+??? - increases card selection limit by +2
+
 --
 
 Sheaf - lengdray joker that at the end of round creates a star card
 
 Monad - lengdray joker that gains 0.5 Xchips and Xmult for every hex point you have
+
+Atlas - 
 
 --
 
@@ -118,11 +112,25 @@ Zeta function - mythic joker that takes 1/(zeta(chips)-1) of chips
 
 P-adic - mythic joker retiggers every joker that is mythic rarity or below once for every 100 hex points you have, starts at 1 retigger if hex points are below 100
 
-Aurora - mythic joker that gives +0.05 ^mult and ^chips for every 1 dollar you have 
+Aurora - mythic joker that gives +0.05 ^mult and ^chips for every 1 dollar you have (starts at 1 ^mult and ^chips)
 
-Obsidian - 
+Obsidian - mythic joker that gives +0.25 for every 7 in deck (starts at 1 ^mult and ^chips)
 
-Lagrangian -
+Lagrangian - mythic joker that increase the joker value to the right by x1.5 at the end of every round if the joker is mythic rarity or below
+
+Banach - 
+
+??? -
+
+??? -
+
+??? -
+
+??? -
+
+??? -
+
+??? - 
 
 --
 
@@ -140,7 +148,17 @@ Barnes G-function - transcendental joker that gives G(chips+1)/(e^chips) ^chips
 
 K-function - transcendental joker that takes the K-function of mult +1 and chips + 1 
 
-??? -  
+Number theory - transcendental joker that gains +1 ^^mult and ^^chips for the current ante you are own 
+
+Quaternions - transcendental joker that gains +0.1 ^^mult and ^^chips for every hand played, starts at 1
+
+??? - transcendental joker that gives +0.25 ^^mult and ^^chips for every booster packed opened, starts at 1
+
+??? - 
+
+??? - 
+
+??? - 
 
 --
 
@@ -179,20 +197,19 @@ Boss bilnd ideas:
 
 ??? - -2 hex points per played hand
 
-??? -  
+??? - 
 
 ??? - showdown bilnd, 
 
 --
 
-Corruption blinds
-
+Corruption blind
 
 has a 0.8% chance of replaceing a random boss blind after ante 8 increases by 0.1% every ante
 
 (can not be debuffed by chciot, luchador, fractal ritual card, or anything)
 
-
+scoreing reqiurment is 10{ante-8}10
 
 
 --
@@ -209,17 +226,17 @@ voucher ideas:
 
 Legndary Soul - increases chance to find the soul in arcana and sperctral packs by double
 
-Mythic Heart - increases chance to find the heart in arcana and sperctral packs by double
+Mythic Heart (Lengdary soul tier 2) - increases chance to find the heart in arcana and sperctral packs by double
 
-Reacher - increases selection limit to 6 for playing cards
+Reacher - increases selection limit by +1 for playing cards
 
-Reacher - increases selection limit to 8 for playing cards
+Long Reacher (Reacher tier 2) - increases selection limit by +2 for playing cards
 
 Negative bunch - increses the chance for negative jokers by 2
 
-Negative cluster - incereases chance for negative jokers by 5
+Negative cluster (Negative bunch tier 2) - incereases chance for negative jokers by 5
 
-Overstock plus plus - one more booster pack in shop and one more voucher in shop
+Overstock plus plus (overstock tier 3) - one more booster pack in shop and one more voucher in shop
 
 Nova - star packs can now appear
 
@@ -230,6 +247,8 @@ Cosmic rays (tier 3 Nova) - Galaxy packs can now appear
 Gravitational waves (tier 4 Nova) - Galaxy cards can now appear in shop
 
 Relativistic jets (tier 5 Nova) - Nebula cards, Comsic cards, Celestial cards are more likely to appear in packs
+
+
 
 ---
 
@@ -251,7 +270,7 @@ spectral card ideas:
 
 ??? - one selceted card gets Chromatic 
 
-??? - 
+??? - gives one select playing card the Topaz enhancment
 
 ---
 
@@ -437,23 +456,11 @@ can't be copied by perkeo
 
 Star cards:
 
-Procyon - The next boss blind is disabled (showdowns don't count)
-
-Rigel - creates 2 negative planet cards, 2 negative tarot cards, and 1 negative spectral card
-
-Arcturus - +1 consumable slot
-
-Betelgeuse - change selected card to any choosen rank
-
-Antares - change 3 selected card to choosen suit
-
 Altair - increase chances for negative jokers by *1.1
-
-Polaris - your most played poker hands gets a ^1.1 buff to chips and mult
 
 Pistol star - gives one selected card an orange seal
 
-Toi-125 - after 3 uses of this card unlocks VY Canis Majoris
+Toi-125 - after useign this card unlock VY Canis Majoris (this card can not show up again)
 
 VY Canis Majoris - +1 joker slot (this card can not show up again)
 
@@ -469,11 +476,11 @@ protoplanetary disk - doubles all star card values
 
 Exoplanet - creates a Nebula card 
 
-Brown dwarf - gives 300 hex points but -3 discards every round (this card can only be used once before not showing up again)
+Brown dwarf - 3 selected cards get randomly Ruby or Sapphire enhancment
 
-white dwarf -  gives 300 hex points but -3 hand size (this card can only be used once before not showing up again)
+white dwarf -  gives 300 hex points but -2 hand size, -2 discards every round, and -2 hands every round (this card can be used many times)
 
-Neutron star - gives 300 hex points but -3 hands every round (this card can only be used once before not showing up again)
+Neutron star - gives two selected card Platinum
 
 Quasars - increase chance for the soul and the heart to appear in spectral and acrana packs by *2 (can only use once)
 
@@ -541,11 +548,13 @@ Mice Galaxies - unlocks Comsic cards afer useing this card 3 times, when this ca
 
 Pinwheel Galaxy - +1 selection limit for playing cards
 
-Sculptor Galaxy - 1 in 2 chance of unlocking celestial cards (can not show after unlocking celestial cards)
+Sculptor Galaxy - 1 in 100 chance of unlocking celestial cards (can not show after unlocking celestial cards)
 
 Sombrero Galaxy - gives 4 negative star cards 
 
 Tadpole Galaxy - 1 in 5 chance of creating a Nebula card
+
+Alcyoneus - gives one selected card Crystal 
 
 Triangulum Galaxy - gives one selected card a green seal 
 
@@ -685,13 +694,20 @@ Empowered - gives 1.025 ^^^^mult and ^^^^chips (can't be created by Manifest)
 
 card enhancments ideas: 
 
-Bonze - gives 2 Xchips when held in hands
+Bronze - gives 2 Xchips when held in hands
 
 Crystal - has a 1 in 2 chance to give 1.75 ^chips and ^mult when triggered 
 
-Platinum - gives 1.25 ^^chips and ^^mult when triggered
+Platinum - gives 1.25 ^^chips and ^^mult when triggered (destoryed after use)
 
-Ruby - gives 1.05 ^^^chips and ^^^mult when triggered (can't be created by Manifest) 
+Ruby - this card gives ^1 mult, gains +1 power every time this card is played
+
+Topaz - this card gives +1$ every time thus card is triggered, gains +1 power every time this card is played
+
+Sapphire - this card gives ^1 chips, gains +1 power every time this card is played
+
+Diamond - gives +0.5 ^^mult and ^^chips per diamond card in your deck (starts at 1.5 with one Diamond card in your deck)
+
 
 ---
 
@@ -705,11 +721,13 @@ Galaxy tag - gives one random galaxy card
 
 Occult tag - gains 7 hex points
 
+
+
 ---
 
 sticker ideas:
 
-Immortal sticker - can not be desotryed by anything 
+Immortal sticker - can not be desotryed by anything (can't be on any other joker than Absolute and Inaccessible)
 
 
 ---

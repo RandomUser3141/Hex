@@ -777,11 +777,11 @@ SMODS.Back{
     loc_txt = {
         name = "Cursed Deck",
         text = {
-            "Start with {C:ritual}50{}",
-            "{C:ritual}Hex points{}",
+            "Start with {C:purple}50{}",
+            "{C:purple}Hex points{}",
             "Gain twice the",
-            "{C:ritual}Hex points{} from",
-            "{C:ritual}hexing{} a Joker"
+            "{C:purple}Hex points{} from",
+            "{C:purple}hexing{} a Joker"
         }
     },
 
@@ -1356,8 +1356,8 @@ SMODS.Back{
     loc_txt = {
         name = "Broken Deck",
         text = {
-            "Start with {C:ritual}100,000{}",
-            "{C:ritual}Hex points{}",
+            "Start with {C:purple}100,000{}",
+            "{C:purple}Hex points{}",
         }
     },
 
@@ -1847,10 +1847,10 @@ SMODS.Joker{
 
 
 SMODS.Joker{
-    key = "exponent_joker",
+    key = "lemniscate",
 
     loc_txt = {
-        name = "Exponent Joker",
+        name = "Lemniscate",
         text = {
             "Raises final Mult to the power of {C:purple}^#1#{}",
             "Gains {C:purple}+0.01{} power",
@@ -1903,7 +1903,7 @@ SMODS.Joker{
 
         end
 
-        -- Applied when Exponent Joker itself scores, in its actual position
+        -- Applied when this  Joker itself scores, in its actual position
         -- among the Joker slots, rather than being forced to the very end
         -- of scoring. Jokers to its left have already modified Mult by the
         -- time this power is applied; Jokers to its right build on top of
@@ -2481,7 +2481,7 @@ SMODS.ConsumableType{
     primary_colour = G.C.STAR,
     secondary_colour = G.C.STAR,
     badge_colour = G.C.STAR,
-    collection_rows = { 4, 4 },
+    collection_rows = { 6, 6 },
     shop_rate = 0,          -- never appears in normal shop generation
     loc_txt = {
         name = "Star",
@@ -3485,6 +3485,365 @@ SMODS.Consumable{
 
 
 
+-- Rigel: creates 2 Negative Planet cards, 2 Negative Tarot cards, and 1
+-- Negative Spectral card, staggered by a short delay each (same
+-- staggering technique Proxima Centauri already uses above for its own
+-- two Negative Jokers) so their materialize animations don't perfectly
+-- overlap. Unlike Negative Jokers (which are exempt from the Joker slot
+-- limit), Negative consumables still count against the normal
+-- consumable slot limit, so each creation is individually gated on
+-- there being room in G.consumeables at the moment it actually fires --
+-- a card queued up before the area fills up would otherwise just be
+-- silently lost. SMODS.create_card with only `set` (no `key`) behaves
+-- like a normal draw from that type's pool -- the same shortcut Black
+-- Seal's Spectral grant elsewhere in this file uses -- so every card
+-- here is a genuinely random member of its type, just always Negative.
+SMODS.Consumable{
+    key = "rigel",
+    set = "star",
+
+    atlas = "HexStarsGalaxies",
+    pos = { x = 6, y = 1 },
+
+    unlocked = true,
+    discovered = true,
+
+    in_pool = function(self)
+        return false -- never naturally drawn from a pool; only ever handed out via the Spectral/Arcana pack hook
+    end,
+
+    loc_txt = {
+        name = "Rigel",
+        text = {
+            "Creates {C:attention}2{} {C:attention}Negative{}",
+            "Planet cards, {C:attention}2{} {C:attention}Negative{}",
+            "Tarot cards, and {C:attention}1{}",
+            "{C:attention}Negative{} Spectral card",
+        }
+    },
+
+    can_use = function(self, card)
+        return true
+    end,
+
+    use = function(self, card)
+        local to_create = { "Planet", "Planet", "Tarot", "Tarot", "Spectral" }
+
+        for i, card_type in ipairs(to_create) do
+            G.E_MANAGER:add_event(Event({
+                trigger = "after",
+                delay = 0.2 * i,
+                func = function()
+                    if G.consumeables then
+                        -- Deliberately no slot-limit check here -- Rigel
+                        -- always creates all 5 cards regardless of how
+                        -- full the consumable area already is, the same
+                        -- way Negative Jokers ignore the Joker slot limit
+                        -- elsewhere in this file.
+                        local new_card = SMODS.create_card({
+                            set = card_type,
+                            area = G.consumeables
+                        })
+
+                        new_card:set_edition({ negative = true }, true)
+
+                        G.consumeables:emplace(new_card)
+                    end
+                    return true
+                end
+            }))
+        end
+
+        card_eval_status_text(card, "extra", nil, nil, nil, {
+            message = "+5 Negative",
+            colour = G.C.STAR
+        })
+    end,
+}
+
+-- Arcturus: permanently grants +1 consumable slot, the same effect the
+-- vanilla Crystal Ball voucher gives -- but as a Star card rather than a
+-- voucher, it isn't limited to a single purchase, so every additional
+-- copy used stacks another +1 on top, uncapped. Straightforward direct
+-- bump of G.consumeables.config.card_limit, the same field Crystal Ball
+-- itself raises.
+SMODS.Consumable{
+    key = "arcturus",
+    set = "star",
+
+    atlas = "HexStarsGalaxies",
+    pos = { x = 7, y = 1 },
+
+    unlocked = true,
+    discovered = true,
+
+    in_pool = function(self)
+        return false -- never naturally drawn from a pool; only ever handed out via the Spectral/Arcana pack hook
+    end,
+
+    loc_txt = {
+        name = "Arcturus",
+        text = {
+            "Permanently gain",
+            "{C:attention}+1{} consumable slot",
+        }
+    },
+
+    can_use = function(self, card)
+        return true
+    end,
+
+    use = function(self, card)
+        if G.consumeables and G.consumeables.config then
+            G.consumeables.config.card_limit = G.consumeables.config.card_limit + 1
+        end
+
+        card_eval_status_text(card, "extra", nil, nil, nil, {
+            message = "+1 Slot",
+            colour = G.C.STAR
+        })
+    end,
+}
+
+-- Procyon: disables the next Boss Blind encountered. Stores a stacking
+-- charge counter (G.GAME.hex_procyon_charges) rather than a single flag,
+-- so using multiple copies of this card queues up multiple future Boss
+-- Blind disables rather than only ever affecting one. The actual
+-- disabling happens in the Game:update hook further down the file, right
+-- alongside Fractal's own boss-disable poll -- same Blind:disable() call
+-- Chicot/Fractal already use, just gated on `charges > 0` instead of a
+-- permanent "used" flag, and decremented by 1 every time it actually
+-- fires. Checking `not G.GAME.blind.disabled` (same guard Fractal uses)
+-- naturally prevents this from double-decrementing on later frames once
+-- a given Boss Blind is already disabled -- the charge is only spent the
+-- one frame the disable actually happens.
+SMODS.Consumable{
+    key = "procyon",
+    set = "star",
+
+    atlas = "HexStarsGalaxies",
+    pos = { x = 8, y = 1 },
+
+    unlocked = true,
+    discovered = true,
+
+    in_pool = function(self)
+        return false -- never naturally drawn from a pool; only ever handed out via the Spectral/Arcana pack hook
+    end,
+
+    loc_txt = {
+        name = "Procyon",
+        text = {
+            "The next {C:attention}Boss Blind{}",
+            "is {C:attention}disabled{}",
+        }
+    },
+
+    can_use = function(self, card)
+        return true
+    end,
+
+    use = function(self, card)
+        G.GAME.hex_procyon_charges = (G.GAME.hex_procyon_charges or 0) + 1
+
+        -- If a Boss Blind is already active/selected right now, disable
+        -- it immediately rather than waiting up to a frame -- same
+        -- immediate-apply treatment Fractal's own use function gives its
+        -- currently-active Boss Blind.
+        if G.GAME.blind and G.GAME.blind.boss and not G.GAME.blind.disabled then
+            G.GAME.blind:disable()
+            G.GAME.hex_procyon_charges = G.GAME.hex_procyon_charges - 1
+        end
+
+        card_eval_status_text(card, "extra", nil, nil, nil, {
+            message = "Boss Disabled!",
+            colour = G.C.STAR
+        })
+    end,
+}
+
+-- Polaris: finds whichever poker hand type has been played the most
+-- times so far this run (G.GAME.hands[key].played, vanilla's own
+-- cumulative play counter -- the same field the "Most Played Hand" stat
+-- reads), and permanently raises that hand's base Chips and Mult to the
+-- power of 1.1. Unlike Eclipse (which tetrates -- arrow(2, ...) -- every
+-- hand's Chips/Mult at once), this only ever touches the single most-
+-- played hand, and uses ordinary exponentiation: arrow(1, 1.1) is
+-- Amulet's OmegaNum power operator (arrow(1, n) = ^n), NOT arrow(2, ...)
+-- which is tetration (^^). If no hand has been played yet this run
+-- (every `played` count is 0), the first hand encountered while
+-- scanning is used as a fallback so this never silently does nothing.
+SMODS.Consumable{
+    key = "polaris",
+    set = "star",
+
+    atlas = "HexStarsGalaxies",
+    pos = { x = 9, y = 1 },
+
+    unlocked = true,
+    discovered = true,
+
+    in_pool = function(self)
+        return false -- never naturally drawn from a pool; only ever handed out via the Spectral/Arcana pack hook
+    end,
+
+    loc_txt = {
+        name = "Polaris",
+        text = {
+            "Your {C:attention}most played{}",
+            "poker hand permanently",
+            "gains {C:purple}^1.1{}",
+            "{C:chips}Chips{} and {C:mult}Mult{}",
+        }
+    },
+
+    can_use = function(self, card)
+        return true
+    end,
+
+    use = function(self, card)
+        local best_key, best_played = nil, -1
+
+        for k, h in pairs(G.GAME.hands) do
+            if h.played and h.played > best_played then
+                best_played = h.played
+                best_key = k
+            end
+        end
+
+        if best_key then
+            local hand = G.GAME.hands[best_key]
+
+            if hand.chips then
+                hand.chips = to_big(hand.chips):arrow(1, 1.1)
+            end
+            if hand.mult then
+                hand.mult = to_big(hand.mult):arrow(1, 1.1)
+            end
+        end
+
+        card_eval_status_text(card, "extra", nil, nil, nil, {
+            message = "^1.1",
+            colour = G.C.STAR
+        })
+    end,
+}
+
+-- Betelgeuse: changes 2 selected playing cards to a chosen Rank, keeping
+-- each card's own Suit, Enhancement, Seal, and Edition untouched. Reuses
+-- the exact same overlay-menu "collection grid" picker Manifest's own
+-- Rank step is built from (see the hex_star_pick_* system defined right
+-- after the Manifest ritual further down the file) -- only the mode
+-- ("rank") and the captured target cards differ.
+SMODS.Consumable{
+    key = "betelgeuse",
+    set = "star",
+
+    atlas = "HexStarsGalaxies",
+    pos = { x = 0, y = 2 }, -- next open row in the atlas, after Polaris (9,1)
+
+    unlocked = true,
+    discovered = true,
+
+    in_pool = function(self)
+        return false -- never naturally drawn from a pool; only ever handed out via the Spectral/Arcana pack hook
+    end,
+
+    loc_txt = {
+        name = "Betelgeuse",
+        text = {
+            "Change {C:attention}up to 2{} selected",
+            "playing cards to a",
+            "{C:attention}chosen Rank{}",
+        }
+    },
+
+    -- At least 1 and at most 2 cards highlighted -- unlike Cappella's
+    -- exact-1 gate elsewhere in this file, this is a range so the player
+    -- can hit just 1 card without needing a second one highlighted too.
+    can_use = function(self, card)
+        return G.hand and G.hand.highlighted
+            and #G.hand.highlighted >= 1
+            and #G.hand.highlighted <= 2
+    end,
+
+    use = function(self, card)
+        if not (G.hand and G.hand.highlighted
+        and #G.hand.highlighted >= 1
+        and #G.hand.highlighted <= 2) then return end
+
+        -- Capture whichever cards are highlighted right now (1 or 2 of
+        -- them) -- opening the overlay menu changes hover/focus state, so
+        -- re-reading G.hand.highlighted once the menu is open (at
+        -- click-time) would be unreliable.
+        local targets = {}
+        for _, c in ipairs(G.hand.highlighted) do
+            targets[#targets + 1] = c
+        end
+
+        G.HEX_STAR_PICK_TARGETS = targets
+        G.HEX_STAR_PICK_MODE = "rank"
+        G.HEX_STAR_PICK_TITLE = "Betelgeuse -- Choose a Rank"
+        G.FUNCS.hex_star_pick_menu()
+    end,
+}
+
+-- Antares: changes 3 selected playing cards to a chosen Suit, keeping
+-- each card's own Rank, Enhancement, Seal, and Edition untouched. Same
+-- hex_star_pick_* picker as Betelgeuse above, just mode = "suit" and 3
+-- captured targets instead of 2.
+SMODS.Consumable{
+    key = "antares",
+    set = "star",
+
+    atlas = "HexStarsGalaxies",
+    pos = { x = 1, y = 2 }, -- next open frame in the atlas, after Betelgeuse (0,2)
+
+    unlocked = true,
+    discovered = true,
+
+    in_pool = function(self)
+        return false -- never naturally drawn from a pool; only ever handed out via the Spectral/Arcana pack hook
+    end,
+
+    loc_txt = {
+        name = "Antares",
+        text = {
+            "Change {C:attention}up to 3{} selected",
+            "playing cards to a",
+            "{C:attention}chosen Suit{}",
+        }
+    },
+
+    -- At least 1 and at most 3 cards highlighted, same range-gate
+    -- approach as Betelgeuse above.
+    can_use = function(self, card)
+        return G.hand and G.hand.highlighted
+            and #G.hand.highlighted >= 1
+            and #G.hand.highlighted <= 3
+    end,
+
+    use = function(self, card)
+        if not (G.hand and G.hand.highlighted
+        and #G.hand.highlighted >= 1
+        and #G.hand.highlighted <= 3) then return end
+
+        local targets = {}
+        for _, c in ipairs(G.hand.highlighted) do
+            targets[#targets + 1] = c
+        end
+
+        G.HEX_STAR_PICK_TARGETS = targets
+        G.HEX_STAR_PICK_MODE = "suit"
+        G.HEX_STAR_PICK_TITLE = "Antares -- Choose a Suit"
+        G.FUNCS.hex_star_pick_menu()
+    end,
+}
+
+
+
+
+
 -- Human-readable names for each hyperoperator level, used in the
 -- Hyperbolic loc text and status messages.
 local hex_operator_names = {
@@ -3566,7 +3925,7 @@ if SMODS.Scoring_Calculation then
                 return big(chips) * big(mult)
             end
 
-            -- level 1 -> arrow(2) = ^, level 2 -> arrow(3) = ^^, etc.
+            -- level 1 -> arrow(1) = ^, level 1 -> arrow(1) = ^^, etc.
             return to_big(chips):arrow(level, mult)
         end,
         -- NOTE: the base game's operator-refresh function only ever reads
@@ -4660,6 +5019,312 @@ SMODS.Consumable{
 }
 
 
+-- ============================================================
+-- Shared picker: Betelgeuse (Rank) / Antares (Suit)
+-- A single-step overlay menu, built from the exact same CardArea-grid-
+-- of-rows + create_option_cycle pager pieces the Life and Manifest
+-- rituals' own menus above are built from (same HEX_LIFE_ROWS/COLS grid
+-- size, same panel layout). Rather than duplicating Manifest's whole
+-- multi-step wizard, this is just one of Manifest's own steps (Rank or
+-- Suit) pulled out on its own, reused by both Betelgeuse and Antares --
+-- the only things that differ between the two cards are the picker's
+-- mode ("rank" vs "suit") and which playing cards it applies the choice
+-- to once something is clicked.
+-- ============================================================
+
+-- True while a Betelgeuse/Antares picker overlay is open, mirroring
+-- G.HEX_LIFE_ACTIVE / G.HEX_MANIFEST_ACTIVE above -- the Card.click hook
+-- below only intercepts clicks in this context.
+G.HEX_STAR_PICK_ACTIVE = false
+G.HEX_STAR_PICK_MODE = nil     -- "rank" or "suit"
+G.HEX_STAR_PICK_TARGETS = {}   -- the specific playing cards being changed
+G.HEX_STAR_PICK_TITLE = ""
+
+local HEX_STAR_PICK_OPTIONS = {
+    rank = function() return HEX_MANIFEST_RANKS end,
+    suit = function() return { "Spades", "Hearts", "Clubs", "Diamonds" } end,
+}
+
+-- Maps a base card's `.value` (vanilla's own full-word rank name, e.g.
+-- "Ace"/"10"/"9", the same field checked elsewhere in this file via
+-- `context.other_card.base.value == "Ace"` for The Seal of Aces) to the
+-- single-letter rank token G.P_CARDS is keyed with (matching
+-- HEX_MANIFEST_RANKS above -- "A","K","Q","J","T","9".."2").
+local HEX_RANK_VALUE_TO_LETTER = {
+    ["Ace"] = "A",
+    ["King"] = "K",
+    ["Queen"] = "Q",
+    ["Jack"] = "J",
+    ["10"] = "T",
+    ["9"] = "9",
+    ["8"] = "8",
+    ["7"] = "7",
+    ["6"] = "6",
+    ["5"] = "5",
+    ["4"] = "4",
+    ["3"] = "3",
+    ["2"] = "2",
+}
+
+-- Recovers "what Suit and Rank is this card currently" straight from its
+-- own `.base.suit` / `.base.value` fields (rather than scanning G.P_CARDS
+-- for a table that's identical() to card.base) -- dealt-into-hand cards
+-- aren't guaranteed to keep sharing the exact same table reference as the
+-- G.P_CARDS entry they were built from, so an identity scan can silently
+-- come up empty even though the card's suit/value fields are fine.
+-- HEX_MANIFEST_SUIT_LETTERS (Spades/Hearts/Clubs/Diamonds -> S/H/C/D) is
+-- reused here since card.base.suit is that same full-word format.
+local function hex_get_card_letters(card)
+    if not (card and card.base) then return nil, nil end
+
+    local suit_letter = HEX_MANIFEST_SUIT_LETTERS[card.base.suit]
+    local rank_letter = HEX_RANK_VALUE_TO_LETTER[card.base.value]
+
+    return suit_letter, rank_letter
+end
+
+-- Preview card for one picker option -- a plain base (no enhancement/
+-- seal/edition) showing just the Rank (on a Spade) or the Suit (as an
+-- Ace), since only that single attribute is actually being chosen here.
+local function hex_star_pick_preview_card(mode, value)
+    local front
+
+    if mode == "rank" then
+        front = G.P_CARDS["S_" .. value]
+    else
+        local suit_letter = HEX_MANIFEST_SUIT_LETTERS[value] or "S"
+        front = G.P_CARDS[suit_letter .. "_A"]
+    end
+
+    front = front or G.P_CARDS.empty
+
+    local card = Card(0, 0, G.CARD_W, G.CARD_H, front, G.P_CENTERS.c_base)
+    card.hex_star_pick_value = value
+
+    return card
+end
+
+local function hex_star_pick_rebuild_page(current_option)
+    if not G.hex_star_pick_rows then return end
+
+    local options = HEX_STAR_PICK_OPTIONS[G.HEX_STAR_PICK_MODE]()
+
+    for j = 1, #G.hex_star_pick_rows do
+        for i = #G.hex_star_pick_rows[j].cards, 1, -1 do
+            local c = G.hex_star_pick_rows[j]:remove_card(G.hex_star_pick_rows[j].cards[i])
+            if c then c:remove() end
+        end
+    end
+
+    for j = 1, #G.hex_star_pick_rows do
+        for i = 1, HEX_LIFE_COLS do
+            local idx = i + (j - 1) * HEX_LIFE_COLS + (HEX_LIFE_COLS * #G.hex_star_pick_rows) * (current_option - 1)
+            local value = options[idx]
+            if value then
+                local card = hex_star_pick_preview_card(G.HEX_STAR_PICK_MODE, value)
+                card.T.x = G.hex_star_pick_rows[j].T.x + G.hex_star_pick_rows[j].T.w / 2
+                card.T.y = G.hex_star_pick_rows[j].T.y
+                G.hex_star_pick_rows[j]:emplace(card)
+            end
+        end
+    end
+end
+
+G.FUNCS.hex_star_pick_page_change = function(args)
+    if not args or not args.cycle_config then return end
+    hex_star_pick_rebuild_page(args.cycle_config.current_option)
+end
+
+-- Identical panel/grid/pager layout to hex_life_build_definition /
+-- hex_manifest_build_definition above, just re-titled per card
+-- (G.HEX_STAR_PICK_TITLE) and with a plain "Cancel" button, since there's
+-- only ever one step here.
+local function hex_star_pick_build_definition()
+    local options = HEX_STAR_PICK_OPTIONS[G.HEX_STAR_PICK_MODE]()
+    local per_page = HEX_LIFE_COLS * HEX_LIFE_ROWS
+    local pages = math.max(1, math.ceil(#options / per_page))
+
+    local deck_tables = {}
+    G.hex_star_pick_rows = {}
+
+    for j = 1, HEX_LIFE_ROWS do
+        G.hex_star_pick_rows[j] = CardArea(
+            G.ROOM.T.x + 0.2 * G.ROOM.T.w / 2, G.ROOM.T.h,
+            5 * G.CARD_W, 0.95 * G.CARD_H,
+            { card_limit = HEX_LIFE_COLS, type = "title", highlight_limit = 0, collection = true }
+        )
+
+        deck_tables[#deck_tables + 1] = {
+            n = G.UIT.R,
+            config = { align = "cm", padding = 0.07, no_fill = true },
+            nodes = { { n = G.UIT.O, config = { object = G.hex_star_pick_rows[j] } } },
+        }
+    end
+
+    local page_options = {}
+    for i = 1, pages do
+        page_options[#page_options + 1] = "Page " .. i .. "/" .. pages
+    end
+
+    hex_star_pick_rebuild_page(1)
+
+    return {
+        n = G.UIT.ROOT,
+        config = {
+            align = "cm",
+            colour = G.C.WHITE,
+            padding = 0.045,
+            r = 0.1,
+        },
+        nodes = {
+            {
+                n = G.UIT.C,
+                config = {
+                    align = "cm",
+                    colour = G.C.L_BLACK,
+                    padding = 0.2,
+                    r = 0.08,
+                },
+                nodes = {
+                    {
+                        n = G.UIT.R,
+                        config = { align = "cm", padding = 0.1 },
+                        nodes = {
+                            { n = G.UIT.T, config = { text = G.HEX_STAR_PICK_TITLE, scale = 0.4, colour = G.C.WHITE } },
+                        },
+                    },
+                    {
+                        n = G.UIT.R,
+                        config = { align = "cm", r = 0.1, colour = G.C.BLACK, emboss = 0.05 },
+                        nodes = deck_tables,
+                    },
+                    {
+                        n = G.UIT.R,
+                        config = { align = "cm", padding = 0.1 },
+                        nodes = {
+                            create_option_cycle({
+                                options = page_options,
+                                w = 4.5,
+                                cycle_shoulders = true,
+                                opt_callback = "hex_star_pick_page_change",
+                                current_option = 1,
+                                colour = G.C.RED,
+                                no_pips = true,
+                                focus_args = { snap_to = true, nav = "wide" },
+                            }),
+                        },
+                    },
+                    {
+                        n = G.UIT.R,
+                        config = { align = "cm", padding = 0.1 },
+                        nodes = {
+                            {
+                                n = G.UIT.C,
+                                config = {
+                                    align = "cm",
+                                    padding = 0.1,
+                                    r = 0.08,
+                                    minw = 3,
+                                    minh = 0.7,
+                                    hover = true,
+                                    shadow = true,
+                                    colour = G.C.RED,
+                                    button = "exit_overlay_menu",
+                                },
+                                nodes = {
+                                    { n = G.UIT.T, config = { text = "Cancel", scale = 0.4, colour = G.C.WHITE } },
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        },
+    }
+end
+
+G.FUNCS.hex_star_pick_menu = function()
+    G.HEX_STAR_PICK_ACTIVE = true
+    G.FUNCS.overlay_menu({ definition = hex_star_pick_build_definition() })
+end
+
+-- Always clear our "menu is active" flag when any overlay closes, the
+-- same layered wrapping Life's and Manifest's own exit_overlay_menu
+-- hooks above already do (each wrap calls the previous one in turn, so
+-- all three flags -- Life's, Manifest's, and this one -- get cleared
+-- together no matter which menu was actually open).
+local hex_star_pick_old_exit_overlay_menu = G.FUNCS.exit_overlay_menu
+G.FUNCS.exit_overlay_menu = function(e)
+    G.HEX_STAR_PICK_ACTIVE = false
+    return hex_star_pick_old_exit_overlay_menu(e)
+end
+
+-- Intercepts clicks on the grid cards while a Betelgeuse/Antares picker
+-- is open, the same technique (and the same underlying Card.click hook
+-- chain) as the Life and Manifest click interceptors above. On a click,
+-- rewrites each captured target card's Rank (keeping its own Suit) or
+-- Suit (keeping its own Rank) via Card:set_base -- Enhancement, Seal,
+-- and Edition all live on separate fields (config.center / seal /
+-- edition) that set_base never touches, so those stay exactly as they
+-- were.
+local hex_star_pick_old_card_click = Card.click
+function Card:click()
+    if G.HEX_STAR_PICK_ACTIVE and G.OVERLAY_MENU then
+        if self.hex_star_pick_value ~= nil then
+            local chosen_value = self.hex_star_pick_value
+            local mode = G.HEX_STAR_PICK_MODE
+            local targets = G.HEX_STAR_PICK_TARGETS or {}
+
+            G.FUNCS.exit_overlay_menu()
+
+            for _, target in ipairs(targets) do
+                if target and target.base then
+                    local suit_letter, rank_letter = hex_get_card_letters(target)
+
+                    if suit_letter and rank_letter then
+                        local new_key = (mode == "rank")
+                            and (suit_letter .. "_" .. chosen_value)
+                            or ((HEX_MANIFEST_SUIT_LETTERS[chosen_value] or suit_letter) .. "_" .. rank_letter)
+
+                        local new_front = G.P_CARDS[new_key]
+
+                        if new_front then
+                            -- Card:set_base is the normal API for this (it's
+                            -- what vanilla's own Death Tarot uses to turn one
+                            -- selected card into another), but fall back to
+                            -- setting the fields by hand + re-running whatever
+                            -- sprite-refresh method exists, in case this
+                            -- installed build exposes it under a different
+                            -- name -- so this still has the best chance of
+                            -- working either way instead of silently no-oping.
+                            if target.set_base then
+                                target:set_base(new_front)
+                            else
+                                target.base = new_front
+                                if target.config then target.config.card = new_front end
+                                if target.set_sprites then
+                                    target:set_sprites(target.config and target.config.center, new_front)
+                                end
+                            end
+                        else
+                            print("[hex] star pick: no G.P_CARDS entry for key '" .. tostring(new_key) .. "'")
+                        end
+                    else
+                        print("[hex] star pick: could not resolve suit/rank letters for target card (suit="
+                            .. tostring(target.base and target.base.suit) .. ", value="
+                            .. tostring(target.base and target.base.value) .. ")")
+                    end
+                end
+            end
+        end
+
+        return -- swallow the click while our menu is open either way
+    end
+
+    hex_star_pick_old_card_click(self)
+end
+
+
 
 
 
@@ -4891,6 +5556,21 @@ function Game:update(dt)
     and G.GAME.blind.boss
     and not G.GAME.blind.disabled then
         G.GAME.blind:disable()
+    end
+
+    -- Procyon: while charges remain, neutralizes every Boss Blind it
+    -- encounters (one charge per Blind), the same Blind:disable() poll
+    -- Fractal uses just above -- see the comment on Procyon's own
+    -- definition above for why a stacking charge counter is used instead
+    -- of a permanent flag. `not G.GAME.blind.disabled` (the same guard
+    -- Fractal's poll relies on) keeps this from spending more than one
+    -- charge on the same Boss Blind across multiple frames.
+    if G.GAME and (G.GAME.hex_procyon_charges or 0) > 0
+    and G.GAME.blind
+    and G.GAME.blind.boss
+    and not G.GAME.blind.disabled then
+        G.GAME.blind:disable()
+        G.GAME.hex_procyon_charges = G.GAME.hex_procyon_charges - 1
     end
 
     -- Polydactyly: while owned, removes the cap on how many cards can be
