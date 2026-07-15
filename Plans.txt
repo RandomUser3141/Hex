@@ -12,7 +12,6 @@ Conway's game of life
 
 Turning machine
 
-Cantor's set
 
 Hypergeometric function
 
