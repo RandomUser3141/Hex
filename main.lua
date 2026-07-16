@@ -160,12 +160,11 @@ end
 
 SMODS.Atlas{
     key = "HexJokers",
-    path = "Jokers.png",
+    path = "jokers.png",
     px = 71,
     py = 95,
 }
 
-<<<<<<< HEAD
 SMODS.Atlas{
     key = "HexPlanetsSpectrals",
     path = "Planets_and_Spectrals.png",
@@ -323,6 +322,7 @@ SMODS.Edition{
                 return {
                     func = function()
                         mult = to_big(mult):arrow(1, 1.25)
+                        update_hand_text({delay = 0}, {mult = mult})
                     end,
                     message = "^1.25",
                     colour = G.C.PURPLE
@@ -336,6 +336,7 @@ SMODS.Edition{
                 return {
                     func = function()
                         mult = to_big(mult):arrow(1, 1.25)
+                        update_hand_text({delay = 0}, {mult = mult})
                     end,
                     message = "^1.25",
                     colour = G.C.PURPLE
@@ -610,6 +611,170 @@ SMODS.Seal{
     end,
 }
 
+-- Colour used for the Immortal sticker's badge/description text, the
+-- same way G.C.HEX_ORANGE_SEAL/HEX_GREEN_SEAL/HEX_PINK_SEAL/
+-- HEX_BLACK_SEAL were defined above for their respective Seals.
+G.C.HEX_IMMORTAL = HEX("E8E8E8")
+
+-- The full, mod-prefixed key this sticker is actually stored/checked
+-- under on a card's `ability` table (card.ability[HEX_IMMORTAL_STICKER_KEY]).
+-- Declared once, up here, so both the sticker's own registration below
+-- and every other piece of code that needs to apply or check for it
+-- later in the file (the Card.start_dissolve hook, and Absolute's own
+-- summon function) all stay in sync automatically.
+local HEX_IMMORTAL_STICKER_KEY = mod.prefix .. "_immortal"
+
+-- Immortal: a purely cosmetic/flag sticker -- it carries no scoring
+-- `calculate` of its own (unlike Seals above). Its actual "can't be
+-- destroyed" behaviour lives entirely in the Card.start_dissolve hook
+-- further down the file, which blocks the dissolve/destroy animation
+-- outright for any card carrying this sticker, with one deliberate
+-- exception (see that hook's own comment for the Absolute-summon
+-- carve-out). should_apply is hard-pinned to false so this can never be
+-- randomly rolled onto a shop card the way Eternal/Perishable/Rental
+-- normally can -- the only place in this mod that ever applies it is
+-- Absolute's own summon function, further down the file.
+SMODS.Sticker{
+    key = "immortal",
+
+    loc_txt = {
+        name = "Immortal",
+        text = {
+            "This card can",
+            "{C:attention}never{} be destroyed",
+            "{C:inactive}(except when{}",
+            "{C:inactive}summoning {C:absolute}Absolute{}{C:inactive}){}",
+        }
+    },
+
+    atlas = "HexStickers",
+    pos = { x = 0, y = 0 },
+
+    badge_colour = G.C.HEX_IMMORTAL,
+
+    should_apply = function(self, card, center)
+        return false -- never naturally rolled onto a card; only ever applied directly by Absolute's summon function
+    end,
+}
+
+-- Applies the Immortal sticker to a card, and enforces mutual exclusivity
+-- with Eternal and Perishable at the same time -- vanilla's own stake-
+-- based sticker roll (inside old_create_card, same place its edition roll
+-- runs) can independently land either of those on a freshly-created
+-- Joker, so both are stripped unconditionally here to guarantee Immortal
+-- is always the only one of the three ever present on the card. Uses
+-- Steamodded's own Seal/Edition-style card:set_sticker API when it's
+-- available; otherwise falls back to setting the ability flag directly
+-- (which is all our own Card.start_dissolve check further down the file
+-- actually reads anyway), so this still works either way instead of
+-- silently no-oping.
+local function hex_apply_immortal_sticker(card)
+    if not card then return end
+
+    if card.set_sticker then
+        card:set_sticker(HEX_IMMORTAL_STICKER_KEY, true)
+    end
+
+    card.ability = card.ability or {}
+    card.ability[HEX_IMMORTAL_STICKER_KEY] = true
+
+    card.ability.eternal = nil
+    card.ability.perishable = nil
+    card.ability.perish_tally = nil
+end
+
+-- ============================================================
+-- Vouchers: Legendary Soul / Mythic Heart
+-- Both double the chance of their respective "soul" card showing up
+-- inside Arcana/Spectral packs -- vanilla's own Soul (c_soul, the card
+-- that creates a Legendary Joker) for Legendary Soul, and this mod's own
+-- Heart consumable (which mirrors Soul's soul_rate/soul_set mechanism,
+-- see its SMODS.Consumable{...} definition further down the file) for
+-- Mythic Heart. Both vouchers just multiply the target center's own
+-- soul_rate field directly -- the same field already driving both
+-- cards' natural appearance chance -- rather than touching any global
+-- probability table, so this can never affect anything else that rolls
+-- off G.GAME.probabilities elsewhere in this file (Pink Seal, Altair,
+-- etc).
+--
+-- Mythic Heart is the tier-2 voucher (via `requires`), unlocked only
+-- after Legendary Soul has been bought, the same tier-1/tier-2
+-- relationship vanilla's own voucher pairs (Overstock/Overstock Plus,
+-- Clearance Sale/Liquidation, etc.) use.
+local HEX_SOUL_CENTER_KEY = "c_soul" -- vanilla's own Soul card
+local HEX_HEART_CENTER_KEY = "c_" .. mod.prefix .. "_heart"
+
+SMODS.Voucher{
+    key = "legendary_soul",
+
+    loc_txt = {
+        name = "Legendary Soul",
+        text = {
+            "{C:attention}Doubles{} the chance",
+            "to find {C:legendary}The Soul{} card",
+            "in {C:tarot}Arcana{} and {C:spectral}Spectral{} packs",
+        }
+    },
+
+    atlas = "HexVouchers",
+    pos = { x = 7, y = 0 },
+
+    unlocked = true,
+    discovered = true,
+
+    add_to_deck = function(self, card, from_debuff)
+        local center = G.P_CENTERS[HEX_SOUL_CENTER_KEY]
+        if center and center.soul_rate then
+            center.soul_rate = center.soul_rate * 2
+        end
+    end,
+
+    remove_from_deck = function(self, card, from_debuff)
+        local center = G.P_CENTERS[HEX_SOUL_CENTER_KEY]
+        if center and center.soul_rate then
+            center.soul_rate = center.soul_rate / 2
+        end
+    end,
+}
+
+SMODS.Voucher{
+    key = "mythic_heart",
+
+    loc_txt = {
+        name = "Mythic Heart",
+        text = {
+            "{C:attention}Doubles{} the chance",
+            "to find {C:mythic}Heart{} card",
+            "in {C:tarot}Arcana{} and {C:spectral}Spectral{} packs",
+        }
+    },
+
+    atlas = "HexVouchers",
+    pos = { x = 7, y = 0 }, -- NOTE: shares its atlas frame with Legendary Soul (7,0), per how it was requested -- move it to an unused frame in HexVouchers before shipping if that overlap isn't intentional, since both currently render with the same sprite.
+
+    -- Tier 2: only appears/unlocks in the shop after Legendary Soul has
+    -- been bought, same requires-based gating vanilla's own tier-2
+    -- vouchers use.
+    requires = { "v_" .. mod.prefix .. "_legendary_soul" },
+
+    unlocked = true,
+    discovered = true,
+
+    add_to_deck = function(self, card, from_debuff)
+        local center = G.P_CENTERS[HEX_HEART_CENTER_KEY]
+        if center and center.soul_rate then
+            center.soul_rate = center.soul_rate * 2
+        end
+    end,
+
+    remove_from_deck = function(self, card, from_debuff)
+        local center = G.P_CENTERS[HEX_HEART_CENTER_KEY]
+        if center and center.soul_rate then
+            center.soul_rate = center.soul_rate / 2
+        end
+    end,
+}
+
 SMODS.Back{
     key = "infinite_joker_deck",
 
@@ -666,6 +831,16 @@ local HEX_NEGATIVE_DECK_KEY = "b_" .. mod.prefix .. "_negative_deck"
 -- independent roll below checks against 10x that baseline (0.03 / 3%).
 local HEX_NEGATIVE_DECK_RATE = 0.03
 
+-- Altair: rather than a flat boosted rate like Negative Deck above,
+-- Altair keeps a persistent, stacking multiplier on G.GAME
+-- (hex_altair_mult, starting at 1) that's increased X1.1 every time a
+-- copy of Altair is used. This baseline rate (roughly vanilla's own
+-- ~0.3% chance for a Joker to roll Negative) is what that multiplier is
+-- applied against, via its own independent roll below -- separate from,
+-- and therefore stacking with, both vanilla's own edition roll inside
+-- old_create_card and the Negative Deck boost roll just below this one.
+local HEX_ALTAIR_BASE_RATE = 0.003
+
 local function hex_negative_deck_selected()
     return G.GAME
         and G.GAME.selected_back
@@ -689,9 +864,37 @@ local HEX_STAR_PACK_CHANCE = 1 / 33
 
 local function hex_get_star_centers()
     local out = {}
+
+    local toi_125_key = "c_" .. mod.prefix .. "_toi_125"
+    local vy_key = "c_" .. mod.prefix .. "_vy_canis_majoris"
+
     for _, center in pairs(G.P_CENTERS) do
         if center.set == "star" then
-            out[#out + 1] = center
+            local skip = false
+
+            -- Toi-125: once used, it can never show up again (see its
+            -- `use` function further down the file, which flips
+            -- hex_toi_125_used).
+            if center.key == toi_125_key
+            and G.GAME and G.GAME.hex_toi_125_used then
+                skip = true
+            end
+
+            -- VY Canis Majoris: hidden entirely until Toi-125 has been
+            -- used to unlock it, and then -- same as Toi-125 -- can never
+            -- show up again once it's been used itself.
+            if center.key == vy_key then
+                if not (G.GAME and G.GAME.hex_vy_unlocked) then
+                    skip = true
+                end
+                if G.GAME and G.GAME.hex_vy_used then
+                    skip = true
+                end
+            end
+
+            if not skip then
+                out[#out + 1] = center
+            end
         end
     end
     return out
@@ -740,6 +943,22 @@ function create_card(_type, area, legendary, _rarity, skip_materialize, soulable
     and (not card.edition)
     and hex_negative_deck_selected()
     and pseudorandom(pseudoseed(mod.prefix .. "_negative_deck_boost")) < HEX_NEGATIVE_DECK_RATE then
+        card:set_edition({
+            ["negative"] = true
+        }, true)
+    end
+
+    -- Altair: independent roll, separate from (and stacking with) both
+    -- vanilla's own edition roll above and the Negative Deck roll just
+    -- above this -- only fires if the card still has no edition at all,
+    -- for the same overwrite/double-count reasons those two guard on
+    -- that. hex_altair_mult defaults to 1 (i.e. just the unmodified
+    -- baseline rate) if Altair has never been used.
+    if _type == "Joker"
+    and (not card.edition)
+    and G.GAME
+    and (G.GAME.hex_altair_mult or 1) > 1
+    and pseudorandom(pseudoseed(mod.prefix .. "_altair_boost")) < (HEX_ALTAIR_BASE_RATE * (G.GAME.hex_altair_mult or 1)) then
         card:set_edition({
             ["negative"] = true
         }, true)
@@ -1518,27 +1737,11 @@ SMODS.Joker{
 
     rarity = 1,
     cost = 4,
-
-SMODS.Joker{
-    key = "green_screen",
-    loc_txt = {
-        name = "Green Screen",
-        text = {
-            "This Joker gains {X:mult,C:white}X1{} Mult",
-            "every time you play a",
-            "{C:attention}Full House{}",
-            "(Currently {X:mult,C:white}X#1#{} Mult)"
-        }
-    },
-    config = { extra = { Xmult = 1, Xmult_gain = 1 } },
-    atlas = "HexJokers",
-    pos = { x = 0, y = 0 }, -- first frame in the atlas
-    rarity = 4,             -- 1 common, 2 uncommon, 3 rare, 4 legendary
-    cost = 20,
     unlocked = true,
     discovered = true,
     blueprint_compat = true,
     eternal_compat = true,
+
     -- Only appears after Cavendish breaks
     in_pool = function(self)
         return G.GAME and G.GAME.cavendish_broken
@@ -1556,6 +1759,7 @@ SMODS.Joker{
                     end
 
                     mult = to_big(mult):arrow(1, power)
+                    update_hand_text({delay = 0}, {mult = mult})
                 end,
 
                 message = "^2",
@@ -1573,6 +1777,19 @@ function Card.start_dissolve(self, ...)
     and self.config.center
     and self.config.center.key == "j_cavendish" then
         G.GAME.cavendish_broken = true
+    end
+
+    -- Immortal sticker: blocks this exact card from ever being
+    -- dissolved/destroyed by anything -- selling, debuffs, other
+    -- Jokers' destroy effects, the HEX sacrifice button, all of it --
+    -- with a single deliberate exception. G.HEX_ABSOLUTE_SUMMONING is
+    -- set true only for the brief moment G.FUNCS.summon_absolute spends
+    -- destroying every currently-held Joker, and cleared immediately
+    -- after, so that's the one window this block gets bypassed in.
+    if self.ability
+    and self.ability[HEX_IMMORTAL_STICKER_KEY]
+    and not G.HEX_ABSOLUTE_SUMMONING then
+        return
     end
 
     return old_start_dissolve(self, ...)
@@ -1699,8 +1916,7 @@ SMODS.Joker{
     eternal_compat = true,
 
     calculate = function(self, card, context)
-
-    calculate = function(self, card, context)        -- Apply the current Xmult when this joker scores
+        -- Apply the current Xmult when this joker scores
         if context.joker_main then
             return {
                 Xmult = card.ability.extra.Xmult,
@@ -1846,6 +2062,7 @@ SMODS.Joker{
                 Xmult = card.ability.extra.Xmult,
             }
         end
+
         -- Grow permanently whenever a Full House is played
         if context.before and next(context.poker_hands["Full House"]) and not context.blueprint then
             card.ability.extra.Xmult = card.ability.extra.Xmult + card.ability.extra.Xmult_gain
@@ -1938,6 +2155,7 @@ SMODS.Joker{
             return {
                 func = function()
                     mult = to_big(mult):arrow(1,  exponent)
+                    update_hand_text({delay = 0}, {mult = mult})
                 end,
                 message = "^" .. string.format("%.2f", exponent_display),
                 colour = G.C.PURPLE
@@ -2147,9 +2365,9 @@ SMODS.Joker{
     loc_txt = {
         name = "The Monolith",
         text = {
-            "Gain {C:ritual}+1{} additional",
-            "{C:ritual}Hex{} point whenever",
-            "you {C:ritual}Hex{} a Joker",
+            "Gain {C:purple}+1{} additional",
+            "{C:purple}Hex{} point whenever",
+            "you {C:purple}Hex{} a Joker",
         }
     },
 
@@ -2223,6 +2441,7 @@ SMODS.Joker{
                 return {
                     func = function()
                         mult = to_big(mult):arrow(2, height)
+                        update_hand_text({delay = 0}, {mult = mult})
                     end,
                     message = "^^" .. tostring(height),
                     colour = G.C.RITUAL
@@ -2279,7 +2498,7 @@ SMODS.Joker{
     loc_txt = {
         name = "Oracle",
         text = {
-            "Rituals can be",
+            "{C:ritual}Rituals{} can be",
             "{C:attention}summoned more than once{}",
         }
     },
@@ -3854,6 +4073,189 @@ SMODS.Consumable{
         G.HEX_STAR_PICK_MODE = "suit"
         G.HEX_STAR_PICK_TITLE = "Antares -- Choose a Suit"
         G.FUNCS.hex_star_pick_menu()
+    end,
+}
+
+-- Altair: permanently raises the persistent Hex Altair multiplier by
+-- X1.1 (stacking with itself, uncapped) -- see HEX_ALTAIR_BASE_RATE and
+-- the create_card hook above for how this multiplier actually gets
+-- applied to Joker Negative-edition odds. Also stacks with Negative
+-- Deck's own boost, since that's a completely separate, independent roll.
+SMODS.Consumable{
+    key = "altair",
+    set = "star",
+
+    atlas = "HexStarsGalaxies",
+    pos = { x = 2, y = 2 },
+
+    unlocked = true,
+    discovered = true,
+
+    in_pool = function(self)
+        return false -- never naturally drawn from a pool; only ever handed out via the Spectral/Arcana pack hook
+    end,
+
+    loc_txt = {
+        name = "Altair",
+        text = {
+            "Permanently increases the chance",
+            "for Jokers to be {C:attention}Negative{}",
+            "by {C:attention}X2{}",
+            "{C:inactive}(Currently X#1#){}",
+        }
+    },
+
+    loc_vars = function(self, info_queue, card)
+        local mult = (G.GAME and G.GAME.hex_altair_mult) or 1
+        return { vars = { string.format("%.2f", mult) } }
+    end,
+
+    can_use = function(self, card)
+        return true
+    end,
+
+    use = function(self, card)
+        G.GAME.hex_altair_mult = ((G.GAME and G.GAME.hex_altair_mult) or 1) * 2
+
+        card_eval_status_text(card, "extra", nil, nil, nil, {
+            message = "X1.1 Negative",
+            colour = G.C.STAR
+        })
+    end,
+}
+
+-- Pistol Star: gives one selected playing card an Orange Seal. Same
+-- "select exactly one card from hand, then use" pattern Cappella's
+-- Black Seal grant above already uses -- can_use gates on exactly one
+-- highlighted card in G.hand, and use() applies the seal to that card
+-- via Card:set_seal (passing this mod's own "orange" seal key, the same
+-- way Cappella passes mod.prefix .. "_black").
+SMODS.Consumable{
+    key = "pistol_star",
+    set = "star",
+
+    atlas = "HexStarsGalaxies",
+    pos = { x = 3, y = 2 },
+
+    unlocked = true,
+    discovered = true,
+
+    in_pool = function(self)
+        return false -- never naturally drawn from a pool; only ever handed out via the Spectral/Arcana pack hook
+    end,
+
+    loc_txt = {
+        name = "Pistol Star",
+        text = {
+            "Gives {C:attention}1{} selected",
+            "playing card an",
+            "{C:attention}Orange Seal{}",
+        }
+    },
+
+    can_use = function(self, card)
+        return G.hand and G.hand.highlighted and #G.hand.highlighted == 1
+    end,
+
+    use = function(self, card)
+        if not (G.hand and G.hand.highlighted and G.hand.highlighted[1]) then return end
+
+        local target = G.hand.highlighted[1]
+        target:set_seal(mod.prefix .. "_orange", true)
+
+        card_eval_status_text(target, "extra", nil, nil, nil, {
+            message = "Orange Seal",
+            colour = G.C.STAR
+        })
+    end,
+}
+
+-- Toi-125: a one-time-use unlock card. Using it permanently unlocks VY
+-- Canis Majoris (below) so it can start appearing via the Spectral/
+-- Arcana pack hook, and Toi-125 itself is removed from that same pool
+-- for the rest of the run the moment it's used -- both handled by the
+-- hex_get_star_centers filter near the top of the file, gated on the two
+-- G.GAME flags set below.
+SMODS.Consumable{
+    key = "toi_125",
+    set = "star",
+
+    atlas = "HexStarsGalaxies",
+    pos = { x = 4, y = 2 },
+
+    unlocked = true,
+    discovered = true,
+
+    in_pool = function(self)
+        return false -- never naturally drawn from a pool; only ever handed out via the Spectral/Arcana pack hook
+    end,
+
+    loc_txt = {
+        name = "Toi-125",
+        text = {
+            "Unlocks {C:attention}VY Canis Majoris{}",
+            "{C:inactive}This card can't appear{}",
+            "{C:inactive}again after being used{}",
+        }
+    },
+
+    can_use = function(self, card)
+        return true
+    end,
+
+    use = function(self, card)
+        G.GAME.hex_toi_125_used = true
+        G.GAME.hex_vy_unlocked = true
+
+        card_eval_status_text(card, "extra", nil, nil, nil, {
+            message = "Unlocked!",
+            colour = G.C.STAR
+        })
+    end,
+}
+
+-- VY Canis Majoris: grants +1 Joker slot. Hidden from the Star pool
+-- entirely until Toi-125 has been used (see hex_get_star_centers), and
+-- -- same as Toi-125 -- removed from that pool for the rest of the run
+-- the moment it's used itself, via hex_vy_used below.
+SMODS.Consumable{
+    key = "vy_canis_majoris",
+    set = "star",
+
+    atlas = "HexStarsGalaxies",
+    pos = { x = 5, y = 2 },
+
+    unlocked = true,
+    discovered = true,
+
+    in_pool = function(self)
+        return false -- never naturally drawn from a pool; only ever handed out via the Spectral/Arcana pack hook
+    end,
+
+    loc_txt = {
+        name = "VY Canis Majoris",
+        text = {
+            "Gain {C:attention}+1{} Joker slot",
+            "{C:inactive}This card can't appear{}",
+            "{C:inactive}again after being used{}",
+        }
+    },
+
+    can_use = function(self, card)
+        return true
+    end,
+
+    use = function(self, card)
+        if G.jokers and G.jokers.config then
+            G.jokers.config.card_limit = G.jokers.config.card_limit + 1
+        end
+
+        G.GAME.hex_vy_used = true
+
+        card_eval_status_text(card, "extra", nil, nil, nil, {
+            message = "+1 Slot",
+            colour = G.C.STAR
+        })
     end,
 }
 
@@ -5701,6 +6103,10 @@ function Game:start_run(...)
     G.GAME.hex_hyperbolic_level = G.GAME.hex_hyperbolic_level or 0
     G.GAME.hex_fractal_used = G.GAME.hex_fractal_used or false
     G.GAME.hex_sol_blind_mult = G.GAME.hex_sol_blind_mult or 1
+    G.GAME.hex_altair_mult = G.GAME.hex_altair_mult or 1
+    G.GAME.hex_toi_125_used = G.GAME.hex_toi_125_used or false
+    G.GAME.hex_vy_unlocked = G.GAME.hex_vy_unlocked or false
+    G.GAME.hex_vy_used = G.GAME.hex_vy_used or false
 
     -- Re-apply the hyperoperator scoring calculation on resume/load, since
     -- G.GAME.current_scoring_calculation_key isn't guaranteed to survive it.
@@ -6145,13 +6551,22 @@ G.FUNCS.summon_absolute = function()
             -- Destroy every other Joker currently held. start_dissolve
             -- plays the usual dissolve animation and removal, same as the
             -- HEX sacrifice button and Cavendish, and Inaccessible itself
-            -- dissolves right along with the rest.
+            -- dissolves right along with the rest. G.HEX_ABSOLUTE_SUMMONING
+            -- is flipped on for exactly this loop -- the one deliberate
+            -- window the Immortal sticker's Card.start_dissolve block
+            -- allows a dissolve through in -- and back off immediately
+            -- after, so nothing else in the game can ever destroy an
+            -- Immortal-stickered card outside of this moment.
+            G.HEX_ABSOLUTE_SUMMONING = true
+
             for i = #G.jokers.cards, 1, -1 do
                 local c = G.jokers.cards[i]
                 if c then
                     c:start_dissolve()
                 end
             end
+
+            G.HEX_ABSOLUTE_SUMMONING = false
 
             local card = SMODS.create_card({
                 set = "Joker",
@@ -6160,6 +6575,15 @@ G.FUNCS.summon_absolute = function()
             })
 
             G.jokers:emplace(card)
+
+            -- Absolute itself is permanently granted the Immortal sticker
+            -- the moment it's summoned (and, as part of the same call,
+            -- has any randomly-rolled Eternal/Perishable stripped off so
+            -- the three never stack -- see hex_apply_immortal_sticker's
+            -- own comment above for details). See the Card.start_dissolve
+            -- hook further up the file for what Immortal actually
+            -- protects this card from.
+            hex_apply_immortal_sticker(card)
 
             G.GAME.hex_absolute_summoned = true
 
