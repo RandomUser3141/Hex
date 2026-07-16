@@ -3,8 +3,9 @@ print("I LOVE YURI!!!!!")
 -- the Steammodded version is smods-1.0.0-beta-1620a
 -- ALSO arrow(1,x) is always is to the power while tetartion uses arrow(2,x)
 
-
 local mod = SMODS.current_mod
+
+mod.badge_colour = HEX("1E3A8A")
 
 mod.optional_features = {
     quantum = true
@@ -346,6 +347,209 @@ SMODS.Edition{
         end
     end
 }
+
+SMODS.Shader({
+    key = "chromatic",
+    path = "chromatic.fs",
+    send = function(self, shader, card)
+        shader:send("time", G.TIMERS.REAL)
+    end
+})
+
+SMODS.Edition{
+    key = "hex_chromatic",
+
+    loc_txt = {
+        name = "Chromatic",
+        label = "Chromatic",
+
+        text = {
+            "{C:blue}X2{} chips"
+        }
+    },
+
+    shader = "chromatic",
+    in_shop = true,
+    unlocked = true,
+    discovered = true,
+    weight = 0.010,
+
+    in_pool = function(self)
+        return true
+    end,
+
+    calculate = function(self, card, context)
+
+        if card.edition
+        and card.edition.key == "e_" .. mod.prefix .. "_chromatic" then
+
+            if context.joker_main then
+                return {
+                    func = function()
+                        chips = to_big(chips):arrow(1, 2)
+                        update_hand_text({delay = 0}, {chips = chips})
+                    end,
+                    message = "X2",
+                    colour = G.C.BLUE
+                }
+            end
+
+            if context.individual
+            and context.cardarea == G.play
+            and context.other_card == card then
+
+                return {
+                    func = function()
+                        chips = to_big(chips):arrow(1, 2)
+                        update_hand_text({delay = 0}, {chips = chips})
+                    end,
+                    message = "X2",
+                    colour = G.C.BLUE
+                }
+            end
+
+        end
+    end
+}
+
+SMODS.Shader({
+    key = "brilliant",
+    path = "brilliant.fs",
+    send = function(self, shader, card)
+        shader:send("time", G.TIMERS.REAL)
+    end
+})
+
+SMODS.Edition{
+    key = "hex_brilliant",
+
+    loc_txt = {
+        name = "Brilliant",
+        label = "Brilliant",
+
+        text = {
+            "{C:blue}^1.5{} chips"
+        }
+    },
+
+    shader = "brilliant",
+    in_shop = true,
+    unlocked = true,
+    discovered = true,
+    weight = 0.005,
+
+    in_pool = function(self)
+        return true
+    end,
+
+    calculate = function(self, card, context)
+
+        if card.edition
+        and card.edition.key == "e_" .. mod.prefix .. "_brilliant" then
+
+            if context.joker_main then
+                return {
+                    func = function()
+                        chips = to_big(chips):arrow(1, 1.5)
+                        update_hand_text({delay = 0}, {chips = chips})
+                    end,
+                    message = "^1.5",
+                    colour = G.C.BLUE
+                }
+            end
+
+            if context.individual
+            and context.cardarea == G.play
+            and context.other_card == card then
+
+                return {
+                    func = function()
+                        chips = to_big(chips):arrow(1, 1.5)
+                        update_hand_text({delay = 0}, {chips = chips})
+                    end,
+                    message = "^1.5",
+                    colour = G.C.BLUE
+                }
+            end
+
+        end
+    end
+}
+
+
+G.C.HEX_RADIANT = HEX("FFD700") -- gold, used for Radiant edition's badge/text
+
+SMODS.Shader({
+    key = "radiant",
+    path = "radiant.fs",
+    send = function(self, shader, card)
+        shader:send("time", G.TIMERS.REAL)
+    end
+})
+
+SMODS.Edition{
+    key = "hex_radiant",
+
+    loc_txt = {
+        name = "Radiant",
+        label = "Radiant",
+
+        text = {
+            "{C:purple}^^1.5{} Chips and Mult"
+        }
+    },
+
+    shader = "radiant",
+    in_shop = true,
+    unlocked = true,
+    discovered = true,
+    weight = 0.0001,
+
+    in_pool = function(self)
+        return true
+    end,
+
+    calculate = function(self, card, context)
+
+        if card.edition
+        and card.edition.key == "e_" .. mod.prefix .. "_radiant" then
+
+            if context.joker_main then
+                return {
+                    func = function()
+                        chips = to_big(chips):arrow(2, 1.5)
+                        mult = to_big(mult):arrow(2, 1.5)
+                        update_hand_text({delay = 0}, {chips = chips, mult = mult})
+                    end,
+                    message = "^^1.5",
+                    colour = G.C.HEX_RADIANT
+                }
+            end
+
+            if context.individual
+            and context.cardarea == G.play
+            and context.other_card == card then
+
+                return {
+                    func = function()
+                        chips = to_big(chips):arrow(2, 1.5)
+                        mult = to_big(mult):arrow(2, 1.5)
+                        update_hand_text({delay = 0}, {chips = chips, mult = mult})
+                    end,
+                    message = "^^1.5",
+                    colour = G.C.HEX_RADIANT
+                }
+            end
+
+        end
+    end
+}
+
+
+
+
+
+
 
 -- Colour used for the Orange Seal's badge/description text -- vanilla
 -- Balatro only defines Gold/Red/Blue/Purple seal colours (G.C.SEAL_*
@@ -2079,6 +2283,32 @@ SMODS.Joker{
     end,
 }
 
+SMODS.Joker{
+    key = "the_monolith",
+
+    loc_txt = {
+        name = "The Monolith",
+        text = {
+            "Gain {C:purple}+1{} additional",
+            "{C:purple}Hex{} point whenever",
+            "you {C:purple}Hex{} a Joker",
+        }
+    },
+
+    atlas = "HexJokers",
+    pos = { x = 5, y = 0 }, -- placeholder art slot, same as other undrawn Mythic+ jokers
+
+    rarity = 4,
+    in_pool = function(self)
+        return false -- hidden/unlock-only rarity, like Overflow/Exponent Joker
+    end,
+
+    cost = 20,
+    unlocked = true,
+    discovered = true,
+    blueprint_compat = false,
+    eternal_compat = true,
+}
 
 SMODS.Joker{
     key = "lemniscate",
@@ -2351,33 +2581,6 @@ SMODS.Joker{
 
     atlas = "HexJokers",
     pos = { x = 5, y = 0 }, -- placeholder art slot, same as other undrawn Mythic+ jokers
-
-    cost = 100,
-    unlocked = true,
-    discovered = true,
-    blueprint_compat = false,
-    eternal_compat = true,
-}
-
-SMODS.Joker{
-    key = "the_monolith",
-
-    loc_txt = {
-        name = "The Monolith",
-        text = {
-            "Gain {C:purple}+1{} additional",
-            "{C:purple}Hex{} point whenever",
-            "you {C:purple}Hex{} a Joker",
-        }
-    },
-
-    atlas = "HexJokers",
-    pos = { x = 5, y = 0 }, -- placeholder art slot, same as other undrawn Mythic+ jokers
-
-    rarity = "hex_mythic",
-    in_pool = function(self)
-        return false -- hidden/unlock-only rarity, like Overflow/Exponent Joker
-    end,
 
     cost = 100,
     unlocked = true,
