@@ -5,7 +5,28 @@ print("I LOVE YURI!!!!!")
 
 local mod = SMODS.current_mod
 
+print("[hex] mod.prefix = '" .. tostring(mod.prefix) .. "'")
+
 mod.badge_colour = HEX("1E3A8A")
+
+-- DEBUG: dumps every truthy key on a context table, e.g.
+-- "joker_main=true, cardarea=<table>, other_card=<table>"
+-- so we can see exactly which calculate() call this is, instead of
+-- only checking the two flags we assumed mattered.
+local function hex_debug_dump_context(context)
+    local parts = {}
+    for k, v in pairs(context) do
+        if v == true then
+            parts[#parts + 1] = tostring(k)
+        elseif type(v) ~= "table" and type(v) ~= "function" and v ~= false then
+            parts[#parts + 1] = tostring(k) .. "=" .. tostring(v)
+        end
+    end
+    if #parts == 0 then
+        return "(no truthy/non-table fields)"
+    end
+    return table.concat(parts, ", ")
+end
 
 mod.optional_features = {
     quantum = true
@@ -293,7 +314,7 @@ SMODS.Shader({
 })
 
 SMODS.Edition{
-    key = "hex_prismatic",
+    key = "prismatic",
 
     loc_txt = {
         name = "Prismatic", 
@@ -316,14 +337,49 @@ SMODS.Edition{
 
     calculate = function(self, card, context)
 
+        if card.edition then
+            print("[hex] PRISMATIC calc fired: card.edition.key=" .. tostring(card.edition.key)
+                .. " | context: " .. hex_debug_dump_context(context))
+        end
+
         if card.edition 
         and card.edition.key == "e_" .. mod.prefix .. "_prismatic" then
 
+
+
+            print("[hex] PRISMATIC KEY MATCHED -- edition=" .. tostring(context.edition)
+                .. " joker_main=" .. tostring(context.joker_main)
+                .. " individual=" .. tostring(context.individual))
+
+            -- Editions are evaluated in their OWN dedicated scoring stage
+            -- (context.edition == true), separate from the Joker's own
+            -- ability (context.joker_main). Applying the hyperoperator here,
+            -- synchronously, directly against the live running score
+            -- (G.GAME.current_round.current_hand), rather than deferring via a
+            -- returned func closure against nonexistent chips/mult upvalues.
+            if context.edition then
+                print("[hex] PRISMATIC EDITION branch: applying directly")
+                local new_mult = to_big(G.GAME.current_round.current_hand.mult):arrow(1, 1.25)
+                print("[hex] PRISMATIC EDITION applying: old_mult=" .. tostring(G.GAME.current_round.current_hand.mult) .. " new_mult=" .. tostring(new_mult))
+                update_hand_text({delay = 0}, {mult = new_mult})
+                return {
+                    message = "^1.25",
+                    colour = G.C.PURPLE
+                }
+            end
+
+            print("[hex] PRISMATIC KEY MATCHED -- joker_main=" .. tostring(context.joker_main)
+                .. " individual=" .. tostring(context.individual)
+                .. " cardarea==G.play=" .. tostring(context.cardarea == G.play)
+                .. " other_card==card=" .. tostring(context.other_card == card))
             if context.joker_main then
+                print("[hex] PRISMATIC JOKER_MAIN branch: returning effect table")
                 return {
                     func = function()
+                        print("[hex] PRISMATIC JOKER_MAIN func START mult=" .. tostring(mult) .. " chips=" .. tostring(chips))
                         mult = to_big(mult):arrow(1, 1.25)
                         update_hand_text({delay = 0}, {mult = mult})
+                        print("[hex] PRISMATIC JOKER_MAIN func END mult=" .. tostring(mult) .. " chips=" .. tostring(chips))
                     end,
                     message = "^1.25",
                     colour = G.C.PURPLE
@@ -334,10 +390,13 @@ SMODS.Edition{
             and context.cardarea == G.play
             and context.other_card == card then
 
+                print("[hex] PRISMATIC INDIVIDUAL branch: returning effect table")
                 return {
                     func = function()
+                        print("[hex] PRISMATIC INDIVIDUAL func START mult=" .. tostring(mult) .. " chips=" .. tostring(chips))
                         mult = to_big(mult):arrow(1, 1.25)
                         update_hand_text({delay = 0}, {mult = mult})
+                        print("[hex] PRISMATIC INDIVIDUAL func END mult=" .. tostring(mult) .. " chips=" .. tostring(chips))
                     end,
                     message = "^1.25",
                     colour = G.C.PURPLE
@@ -357,7 +416,7 @@ SMODS.Shader({
 })
 
 SMODS.Edition{
-    key = "hex_chromatic",
+    key = "chromatic",
 
     loc_txt = {
         name = "Chromatic",
@@ -380,14 +439,49 @@ SMODS.Edition{
 
     calculate = function(self, card, context)
 
+        if card.edition then
+            print("[hex] CHROMATIC calc fired: card.edition.key=" .. tostring(card.edition.key)
+                .. " | context: " .. hex_debug_dump_context(context))
+        end
+
         if card.edition
         and card.edition.key == "e_" .. mod.prefix .. "_chromatic" then
 
+
+
+            print("[hex] CHROMATIC KEY MATCHED -- edition=" .. tostring(context.edition)
+                .. " joker_main=" .. tostring(context.joker_main)
+                .. " individual=" .. tostring(context.individual))
+
+            -- Editions are evaluated in their OWN dedicated scoring stage
+            -- (context.edition == true), separate from the Joker's own
+            -- ability (context.joker_main). Applying the hyperoperator here,
+            -- synchronously, directly against the live running score
+            -- (G.GAME.current_round.current_hand), rather than deferring via a
+            -- returned func closure against nonexistent chips/mult upvalues.
+            if context.edition then
+                print("[hex] CHROMATIC EDITION branch: applying directly")
+                local new_chips = to_big(G.GAME.current_round.current_hand.chips):arrow(1, 2)
+                print("[hex] CHROMATIC EDITION applying: old_chips=" .. tostring(G.GAME.current_round.current_hand.chips) .. " new_chips=" .. tostring(new_chips))
+                update_hand_text({delay = 0}, {chips = new_chips})
+                return {
+                    message = "X2",
+                    colour = G.C.BLUE
+                }
+            end
+
+            print("[hex] CHROMATIC KEY MATCHED -- joker_main=" .. tostring(context.joker_main)
+                .. " individual=" .. tostring(context.individual)
+                .. " cardarea==G.play=" .. tostring(context.cardarea == G.play)
+                .. " other_card==card=" .. tostring(context.other_card == card))
             if context.joker_main then
+                print("[hex] CHROMATIC JOKER_MAIN branch: returning effect table")
                 return {
                     func = function()
+                        print("[hex] CHROMATIC JOKER_MAIN func START mult=" .. tostring(mult) .. " chips=" .. tostring(chips))
                         chips = to_big(chips):arrow(1, 2)
                         update_hand_text({delay = 0}, {chips = chips})
+                        print("[hex] CHROMATIC JOKER_MAIN func END mult=" .. tostring(mult) .. " chips=" .. tostring(chips))
                     end,
                     message = "X2",
                     colour = G.C.BLUE
@@ -398,10 +492,13 @@ SMODS.Edition{
             and context.cardarea == G.play
             and context.other_card == card then
 
+                print("[hex] CHROMATIC INDIVIDUAL branch: returning effect table")
                 return {
                     func = function()
+                        print("[hex] CHROMATIC INDIVIDUAL func START mult=" .. tostring(mult) .. " chips=" .. tostring(chips))
                         chips = to_big(chips):arrow(1, 2)
                         update_hand_text({delay = 0}, {chips = chips})
+                        print("[hex] CHROMATIC INDIVIDUAL func END mult=" .. tostring(mult) .. " chips=" .. tostring(chips))
                     end,
                     message = "X2",
                     colour = G.C.BLUE
@@ -421,7 +518,7 @@ SMODS.Shader({
 })
 
 SMODS.Edition{
-    key = "hex_brilliant",
+    key = "brilliant",
 
     loc_txt = {
         name = "Brilliant",
@@ -444,14 +541,49 @@ SMODS.Edition{
 
     calculate = function(self, card, context)
 
+        if card.edition then
+            print("[hex] BRILLIANT calc fired: card.edition.key=" .. tostring(card.edition.key)
+                .. " | context: " .. hex_debug_dump_context(context))
+        end
+
         if card.edition
         and card.edition.key == "e_" .. mod.prefix .. "_brilliant" then
 
+
+
+            print("[hex] BRILLIANT KEY MATCHED -- edition=" .. tostring(context.edition)
+                .. " joker_main=" .. tostring(context.joker_main)
+                .. " individual=" .. tostring(context.individual))
+
+            -- Editions are evaluated in their OWN dedicated scoring stage
+            -- (context.edition == true), separate from the Joker's own
+            -- ability (context.joker_main). Applying the hyperoperator here,
+            -- synchronously, directly against the live running score
+            -- (G.GAME.current_round.current_hand), rather than deferring via a
+            -- returned func closure against nonexistent chips/mult upvalues.
+            if context.edition then
+                print("[hex] BRILLIANT EDITION branch: applying directly")
+                local new_chips = to_big(G.GAME.current_round.current_hand.chips):arrow(1, 1.5)
+                print("[hex] BRILLIANT EDITION applying: old_chips=" .. tostring(G.GAME.current_round.current_hand.chips) .. " new_chips=" .. tostring(new_chips))
+                update_hand_text({delay = 0}, {chips = new_chips})
+                return {
+                    message = "^1.5",
+                    colour = G.C.BLUE
+                }
+            end
+
+            print("[hex] BRILLIANT KEY MATCHED -- joker_main=" .. tostring(context.joker_main)
+                .. " individual=" .. tostring(context.individual)
+                .. " cardarea==G.play=" .. tostring(context.cardarea == G.play)
+                .. " other_card==card=" .. tostring(context.other_card == card))
             if context.joker_main then
+                print("[hex] BRILLIANT JOKER_MAIN branch: returning effect table")
                 return {
                     func = function()
+                        print("[hex] BRILLIANT JOKER_MAIN func START mult=" .. tostring(mult) .. " chips=" .. tostring(chips))
                         chips = to_big(chips):arrow(1, 1.5)
                         update_hand_text({delay = 0}, {chips = chips})
+                        print("[hex] BRILLIANT JOKER_MAIN func END mult=" .. tostring(mult) .. " chips=" .. tostring(chips))
                     end,
                     message = "^1.5",
                     colour = G.C.BLUE
@@ -462,10 +594,13 @@ SMODS.Edition{
             and context.cardarea == G.play
             and context.other_card == card then
 
+                print("[hex] BRILLIANT INDIVIDUAL branch: returning effect table")
                 return {
                     func = function()
+                        print("[hex] BRILLIANT INDIVIDUAL func START mult=" .. tostring(mult) .. " chips=" .. tostring(chips))
                         chips = to_big(chips):arrow(1, 1.5)
                         update_hand_text({delay = 0}, {chips = chips})
+                        print("[hex] BRILLIANT INDIVIDUAL func END mult=" .. tostring(mult) .. " chips=" .. tostring(chips))
                     end,
                     message = "^1.5",
                     colour = G.C.BLUE
@@ -488,7 +623,7 @@ SMODS.Shader({
 })
 
 SMODS.Edition{
-    key = "hex_radiant",
+    key = "radiant",
 
     loc_txt = {
         name = "Radiant",
@@ -511,15 +646,53 @@ SMODS.Edition{
 
     calculate = function(self, card, context)
 
+        if card.edition then
+            print("[hex] RADIANT calc fired: card.edition.key=" .. tostring(card.edition.key)
+                .. " | context: " .. hex_debug_dump_context(context))
+        end
+
         if card.edition
         and card.edition.key == "e_" .. mod.prefix .. "_radiant" then
 
+
+
+            print("[hex] RADIANT KEY MATCHED -- edition=" .. tostring(context.edition)
+                .. " joker_main=" .. tostring(context.joker_main)
+                .. " individual=" .. tostring(context.individual))
+
+            -- Editions are evaluated in their OWN dedicated scoring stage
+            -- (context.edition == true), separate from the Joker's own
+            -- ability (context.joker_main). Applying the hyperoperator here,
+            -- synchronously, directly against the live running score
+            -- (G.GAME.current_round.current_hand), rather than deferring via a
+            -- returned func closure against nonexistent chips/mult upvalues.
+            if context.edition then
+                print("[hex] RADIANT EDITION branch: applying directly")
+                local new_chips = to_big(G.GAME.current_round.current_hand.chips):arrow(2, 1.5)
+                print("[hex] RADIANT EDITION applying: old_chips=" .. tostring(G.GAME.current_round.current_hand.chips) .. " new_chips=" .. tostring(new_chips))
+                update_hand_text({delay = 0}, {chips = new_chips})
+                local new_mult = to_big(G.GAME.current_round.current_hand.mult):arrow(2, 1.5)
+                print("[hex] RADIANT EDITION applying: old_mult=" .. tostring(G.GAME.current_round.current_hand.mult) .. " new_mult=" .. tostring(new_mult))
+                update_hand_text({delay = 0}, {mult = new_mult})
+                return {
+                    message = "^^1.5",
+                    colour = G.C.HEX_RADIANT
+                }
+            end
+
+            print("[hex] RADIANT KEY MATCHED -- joker_main=" .. tostring(context.joker_main)
+                .. " individual=" .. tostring(context.individual)
+                .. " cardarea==G.play=" .. tostring(context.cardarea == G.play)
+                .. " other_card==card=" .. tostring(context.other_card == card))
             if context.joker_main then
+                print("[hex] RADIANT JOKER_MAIN branch: returning effect table")
                 return {
                     func = function()
+                        print("[hex] RADIANT JOKER_MAIN func START mult=" .. tostring(mult) .. " chips=" .. tostring(chips))
                         chips = to_big(chips):arrow(2, 1.5)
                         mult = to_big(mult):arrow(2, 1.5)
                         update_hand_text({delay = 0}, {chips = chips, mult = mult})
+                        print("[hex] RADIANT JOKER_MAIN func END mult=" .. tostring(mult) .. " chips=" .. tostring(chips))
                     end,
                     message = "^^1.5",
                     colour = G.C.HEX_RADIANT
@@ -530,11 +703,14 @@ SMODS.Edition{
             and context.cardarea == G.play
             and context.other_card == card then
 
+                print("[hex] RADIANT INDIVIDUAL branch: returning effect table")
                 return {
                     func = function()
+                        print("[hex] RADIANT INDIVIDUAL func START mult=" .. tostring(mult) .. " chips=" .. tostring(chips))
                         chips = to_big(chips):arrow(2, 1.5)
                         mult = to_big(mult):arrow(2, 1.5)
                         update_hand_text({delay = 0}, {chips = chips, mult = mult})
+                        print("[hex] RADIANT INDIVIDUAL func END mult=" .. tostring(mult) .. " chips=" .. tostring(chips))
                     end,
                     message = "^^1.5",
                     colour = G.C.HEX_RADIANT
@@ -545,9 +721,114 @@ SMODS.Edition{
     end
 }
 
+G.C.HEX_EMPOWERED = HEX("9D4EDD") -- violet, used for Infused edition's badge/text
+
+SMODS.Shader({
+    key = "empowered",
+    path = "empowered.fs",
+    send = function(self, shader, card)
+        shader:send("time", G.TIMERS.REAL)
+    end
+})
+
+SMODS.Edition{
+    key = "empowered",
+
+    loc_txt = {
+        name = "Empowered",
+        label = "Empowered",
+
+        text = {
+            "{C:purple}^^^1.1{} Chips and Mult"
+        }
+    },
+
+    shader = "empowered",
+    in_shop = true,
+    unlocked = true,
+    discovered = true,
+    weight = 0.001, -- rarer than Radiant, matches the step up in power
+
+    in_pool = function(self)
+        return true
+    end,
+
+    calculate = function(self, card, context)
+
+        if card.edition then
+            print("[hex] EMPOWERED calc fired: card.edition.key=" .. tostring(card.edition.key)
+                .. " | context: " .. hex_debug_dump_context(context))
+        end
+
+        if card.edition
+        and card.edition.key == "e_" .. mod.prefix .. "_empowered" then
 
 
 
+            print("[hex] EMPOWERED KEY MATCHED -- edition=" .. tostring(context.edition)
+                .. " joker_main=" .. tostring(context.joker_main)
+                .. " individual=" .. tostring(context.individual))
+
+            -- Editions are evaluated in their OWN dedicated scoring stage
+            -- (context.edition == true), separate from the Joker's own
+            -- ability (context.joker_main). Applying the hyperoperator here,
+            -- synchronously, directly against the live running score
+            -- (G.GAME.current_round.current_hand), rather than deferring via a
+            -- returned func closure against nonexistent chips/mult upvalues.
+            if context.edition then
+                print("[hex] EMPOWERED EDITION branch: applying directly")
+                local new_chips = to_big(G.GAME.current_round.current_hand.chips):arrow(3, 1.1)
+                print("[hex] EMPOWERED EDITION applying: old_chips=" .. tostring(G.GAME.current_round.current_hand.chips) .. " new_chips=" .. tostring(new_chips))
+                update_hand_text({delay = 0}, {chips = new_chips})
+                local new_mult = to_big(G.GAME.current_round.current_hand.mult):arrow(3, 1.1)
+                print("[hex] EMPOWERED EDITION applying: old_mult=" .. tostring(G.GAME.current_round.current_hand.mult) .. " new_mult=" .. tostring(new_mult))
+                update_hand_text({delay = 0}, {mult = new_mult})
+                return {
+                    message = "^^^1.1",
+                    colour = G.C.HEX_EMPOWERED
+                }
+            end
+
+            print("[hex] EMPOWERED KEY MATCHED -- joker_main=" .. tostring(context.joker_main)
+                .. " individual=" .. tostring(context.individual)
+                .. " cardarea==G.play=" .. tostring(context.cardarea == G.play)
+                .. " other_card==card=" .. tostring(context.other_card == card))
+            if context.joker_main then
+                print("[hex] EMPOWERED JOKER_MAIN branch: returning effect table")
+                return {
+                    func = function()
+                        print("[hex] EMPOWERED JOKER_MAIN func START mult=" .. tostring(mult) .. " chips=" .. tostring(chips))
+                        chips = to_big(chips):arrow(3, 1.1)
+                        mult = to_big(mult):arrow(3, 1.1)
+                        update_hand_text({delay = 0}, {chips = chips, mult = mult})
+                        print("[hex] EMPOWERED JOKER_MAIN func END mult=" .. tostring(mult) .. " chips=" .. tostring(chips))
+                    end,
+                    message = "^^^1.1",
+                    colour = G.C.HEX_EMPOWERED
+                }
+            end
+
+            if context.individual
+            and context.cardarea == G.play
+            and context.other_card == card then
+
+                print("[hex] EMPOWERED INDIVIDUAL branch: returning effect table")
+                return {
+                    func = function()
+                        print("[hex] EMPOWERED INDIVIDUAL func START mult=" .. tostring(mult) .. " chips=" .. tostring(chips))
+                        chips = to_big(chips):arrow(3, 1.1)
+                        mult = to_big(mult):arrow(3, 1.1)
+                        update_hand_text({delay = 0}, {chips = chips, mult = mult})
+                        print("[hex] EMPOWERED INDIVIDUAL func END mult=" .. tostring(mult) .. " chips=" .. tostring(chips))
+                    end,
+                    message = "^^^1.1",
+                    colour = G.C.HEX_EMPOWERED
+                }
+            end
+
+        end
+    end
+}
 
 
 
@@ -1132,8 +1413,9 @@ function create_card(_type, area, legendary, _rarity, skip_materialize, soulable
 
     if _type == "Joker" and pseudorandom(mod.prefix .. "_prismatic_joker") < 0.005 then
     card:set_edition({
-        ["hex_prismatic"] = true
+        ["prismatic"] = true
     }, true)
+    print("[hex] rolled Prismatic on create_card, resulting edition key=" .. tostring(card.edition and card.edition.key))
     end
 
     -- Negative Deck: while selected, give Jokers an extra, independent
