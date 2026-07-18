@@ -1029,6 +1029,145 @@ SMODS.Voucher{
     end,
 }
 
+-- Reach / Long Reach: permanently raises the playing-card selection
+-- limit (the same limit Polydactyly overrides to effectively-infinite,
+-- and Pinwheel Galaxy nudges up a point at a time) via a persistent
+-- G.GAME counter, hex_reach_bonus_limit. Applied in the Game:update poll
+-- further down the file, right alongside Polydactyly's own override and
+-- Pinwheel Galaxy's bonus -- see the comment there for how all three
+-- combine. Long Reach is the tier-2 voucher (via `requires`), unlocked
+-- only after Reach has been bought, the same tier-1/tier-2 relationship
+-- Legendary Soul/Mythic Heart use above -- but unlike some tier pairs,
+-- its own +2 bonus is additive on top of Reach's +1 rather than
+-- replacing it, per how it was requested ("stacks with Reacher").
+SMODS.Voucher{
+    key = "reach",
+
+    loc_txt = {
+        name = "Reach",
+        text = {
+            "{C:attention}+1{} selection limit",
+            "for {C:attention}playing cards{}",
+        }
+    },
+
+    atlas = "HexVouchers",
+    pos = { x = 7, y = 0 },
+
+    unlocked = true,
+    discovered = true,
+
+    add_to_deck = function(self, card, from_debuff)
+        G.GAME.hex_reach_bonus_limit = (G.GAME.hex_reach_bonus_limit or 0) + 1
+    end,
+
+    remove_from_deck = function(self, card, from_debuff)
+        G.GAME.hex_reach_bonus_limit = (G.GAME.hex_reach_bonus_limit or 0) - 1
+    end,
+}
+
+SMODS.Voucher{
+    key = "long_reach",
+
+    loc_txt = {
+        name = "Long Reach",
+        text = {
+            "{C:attention}+2{} selection limit",
+            "for {C:attention}playing cards{}",
+            "{C:inactive}(Stacks with Reach){}",
+        }
+    },
+
+    atlas = "HexVouchers",
+    pos = { x = 7, y = 0 }, -- NOTE: shares its atlas frame with the other (7,0) vouchers in this mod, per how it was requested -- move it to an unused frame in HexVouchers before shipping if that overlap isn't intentional.
+
+    -- Tier 2: only appears/unlocks in the shop after Reach has been
+    -- bought, same requires-based gating vanilla's own tier-2 vouchers
+    -- (and this mod's Mythic Heart, above) use.
+    requires = { "v_" .. mod.prefix .. "_reach" },
+
+    unlocked = true,
+    discovered = true,
+
+    add_to_deck = function(self, card, from_debuff)
+        G.GAME.hex_reach_bonus_limit = (G.GAME.hex_reach_bonus_limit or 0) + 2
+    end,
+
+    remove_from_deck = function(self, card, from_debuff)
+        G.GAME.hex_reach_bonus_limit = (G.GAME.hex_reach_bonus_limit or 0) - 2
+    end,
+}
+
+-- Negative Bunch / Negative Cluster: each permanently unlocks its own
+-- independent, additional roll for the Negative edition on newly created
+-- Jokers -- separate from (and stacking with) vanilla's own edition
+-- roll, Negative Deck's boost, and Altair's boost, the same way each of
+-- those already stack with one another. Implemented as simple on/off
+-- flags (rather than a stacking multiplier like Altair's own
+-- hex_altair_mult) since each of these vouchers can only ever be bought
+-- once -- the actual rolls live in the create_card hook above, right
+-- after Altair's own roll. Negative Cluster is the tier-2 voucher (via
+-- `requires`), unlocked only after Negative Bunch has been bought, same
+-- tier-1/tier-2 relationship Reach/Long Reach use just above -- and,
+-- per how it was requested, its own roll stacks alongside Negative
+-- Bunch's roll rather than replacing it.
+SMODS.Voucher{
+    key = "negative_bunch",
+
+    loc_txt = {
+        name = "Negative Bunch",
+        text = {
+            "{C:attention}Doubles{} the chance",
+            "for Jokers to be {C:dark_red}Negative{}",
+            "{C:inactive}(Stacks with other Negative boosts){}",
+        }
+    },
+
+    atlas = "HexVouchers",
+    pos = { x = 7, y = 0 },
+
+    unlocked = true,
+    discovered = true,
+
+    add_to_deck = function(self, card, from_debuff)
+        G.GAME.hex_negative_bunch_unlocked = true
+    end,
+
+    remove_from_deck = function(self, card, from_debuff)
+        G.GAME.hex_negative_bunch_unlocked = false
+    end,
+}
+
+SMODS.Voucher{
+    key = "negative_cluster",
+
+    loc_txt = {
+        name = "Negative Cluster",
+        text = {
+            "{C:attention}Triples{} the chance",
+            "for Jokers to be {C:dark_red}Negative{}",
+            "{C:inactive}(Stacks with other Negative boosts){}",
+            "{C:inactive}and Negative Bunch){}",
+        }
+    },
+
+    atlas = "HexVouchers",
+    pos = { x = 7, y = 0 },
+
+    requires = { "v_" .. mod.prefix .. "_negative_bunch" },
+
+    unlocked = true,
+    discovered = true,
+
+    add_to_deck = function(self, card, from_debuff)
+        G.GAME.hex_negative_cluster_unlocked = true
+    end,
+
+    remove_from_deck = function(self, card, from_debuff)
+        G.GAME.hex_negative_cluster_unlocked = false
+    end,
+}
+
 SMODS.Back{
     key = "infinite_joker_deck",
 
@@ -1299,6 +1438,36 @@ function create_card(_type, area, legendary, _rarity, skip_materialize, soulable
     and G.GAME
     and (G.GAME.hex_altair_mult or 1) > 1
     and pseudorandom(pseudoseed(mod.prefix .. "_altair_boost")) < (HEX_ALTAIR_BASE_RATE * (G.GAME.hex_altair_mult or 1)) then
+        card:set_edition({
+            ["negative"] = true
+        }, true)
+    end
+
+    -- Negative Bunch: independent roll, separate from (and stacking
+    -- with) vanilla's own edition roll, Negative Deck, and Altair above
+    -- -- only fires if the card still has no edition at all, for the
+    -- same overwrite/double-count reasons those three guard on that.
+    -- Doubles HEX_ALTAIR_BASE_RATE's baseline chance, same "X2" wording
+    -- as its own description.
+    if _type == "Joker"
+    and (not card.edition)
+    and G.GAME
+    and G.GAME.hex_negative_bunch_unlocked
+    and pseudorandom(pseudoseed(mod.prefix .. "_negative_bunch_boost")) < (HEX_ALTAIR_BASE_RATE * 2) then
+        card:set_edition({
+            ["negative"] = true
+        }, true)
+    end
+
+    -- Negative Cluster: another independent roll, stacking alongside
+    -- Negative Bunch's roll just above (rather than replacing it), same
+    -- overwrite/double-count guard. Triples HEX_ALTAIR_BASE_RATE's
+    -- baseline chance.
+    if _type == "Joker"
+    and (not card.edition)
+    and G.GAME
+    and G.GAME.hex_negative_cluster_unlocked
+    and pseudorandom(pseudoseed(mod.prefix .. "_negative_cluster_boost")) < (HEX_ALTAIR_BASE_RATE * 3) then
         card:set_edition({
             ["negative"] = true
         }, true)
@@ -4778,8 +4947,6 @@ SMODS.Consumable{
             "Destroys {C:attention}1{} random Joker,",
             "then creates a random",
             "{C:legendary}Legendary{} Joker",
-            "{C:inactive}(Can't destroy{}",
-            "{C:inactive}Eternal or Immortal Jokers){}",
         }
     },
 
@@ -6996,8 +7163,21 @@ function Game:update(dt)
             -- While Polydactyly is owned, its own effectively-infinite
             -- limit above takes over completely and this bonus is simply
             -- not relevant.
+            --
+            -- Reach / Long Reach: same idea, but from the two vouchers'
+            -- own persistent counter (hex_reach_bonus_limit -- +1 for
+            -- Reach, an additional +2 for Long Reach, both bumped/undone
+            -- directly in each voucher's own add_to_deck/remove_from_deck
+            -- above). This is exactly what makes selling Polydactyly fall
+            -- back to "whatever it was with Reach/Long Reach and however
+            -- many times Pinwheel Galaxy has been used" instead of a flat
+            -- 5 -- the moment Polydactyly is no longer owned, this branch
+            -- takes back over and rebuilds the limit from the base plus
+            -- both of these persistent bonuses, exactly as if Polydactyly
+            -- had never been here.
             local pinwheel_bonus = G.GAME.hex_pinwheel_bonus_limit or 0
-            G.hand.config.highlighted_limit = HEX_POLY_DEFAULT_HAND_LIMIT + pinwheel_bonus
+            local reach_bonus = G.GAME.hex_reach_bonus_limit or 0
+            G.hand.config.highlighted_limit = HEX_POLY_DEFAULT_HAND_LIMIT + pinwheel_bonus + reach_bonus
         end
     end
 
@@ -7097,6 +7277,9 @@ function Game:start_run(...)
     G.GAME.hex_vy_used = G.GAME.hex_vy_used or false
     G.GAME.hex_nova_unlocked = G.GAME.hex_nova_unlocked or false
     G.GAME.hex_pinwheel_bonus_limit = G.GAME.hex_pinwheel_bonus_limit or 0
+    G.GAME.hex_reach_bonus_limit = G.GAME.hex_reach_bonus_limit or 0
+    G.GAME.hex_negative_bunch_unlocked = G.GAME.hex_negative_bunch_unlocked or false
+    G.GAME.hex_negative_cluster_unlocked = G.GAME.hex_negative_cluster_unlocked or false
 
     -- Re-apply the hyperoperator scoring calculation on resume/load, since
     -- G.GAME.current_scoring_calculation_key isn't guaranteed to survive it.
