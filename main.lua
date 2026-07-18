@@ -1019,6 +1019,42 @@ SMODS.Voucher{
     end,
 }
 
+-- Nova: unlocks Star Packs (see the SMODS.Booster{ key = "star_pack",
+-- kind = "star", ... } registration further down the file, right after
+-- the "star" ConsumableType) so they can start appearing in the shop's
+-- normal pack-weight pool at all -- Star Pack's own in_pool check reads
+-- this exact flag. Star Pack's own `weight` field (set once at
+-- registration time, to half of vanilla Spectral Normal's own weight)
+-- is what actually makes it show up half as often as a regular Spectral
+-- pack once unlocked; this voucher only flips that on/off switch.
+SMODS.Voucher{
+    key = "nova",
+
+    loc_txt = {
+        name = "Nova",
+        text = {
+            "{C:star}Star Packs{} can now",
+            "appear in the shop",
+            "{C:inactive}(Half as often as{}",
+            "{C:inactive}Spectral packs){}",
+        }
+    },
+
+    atlas = "HexVouchers",
+    pos = { x = 7, y = 0 }, -- NOTE: shares its atlas frame with Legendary Soul / Mythic Heart (7,0), the same overlap those two already have with each other -- move it to an unused frame in HexVouchers before shipping if that isn't intentional.
+
+    unlocked = true,
+    discovered = true,
+
+    add_to_deck = function(self, card, from_debuff)
+        G.GAME.hex_nova_unlocked = true
+    end,
+
+    remove_from_deck = function(self, card, from_debuff)
+        G.GAME.hex_nova_unlocked = false
+    end,
+}
+
 SMODS.Back{
     key = "infinite_joker_deck",
 
@@ -1152,6 +1188,22 @@ function create_card(_type, area, legendary, _rarity, skip_materialize, soulable
     and area == G.pack_cards
     and not forced_key
     and pseudorandom(pseudoseed(mod.prefix .. "_star_pack")) < HEX_STAR_PACK_CHANCE then
+
+        local stars = hex_get_star_centers()
+        if #stars > 0 then
+            forced_key = stars[math.random(#stars)].key
+        end
+    end
+
+    -- Star Pack (this mod's own SMODS.Booster{ key = "star_pack",
+    -- kind = "star" }): every card drawn from it is forced to come from
+    -- the Star pool, unconditionally -- unlike the 1-in-33 chance
+    -- injection into Spectral/Tarot packs just above, the whole pack is
+    -- Star-only, so there's no random gate here, just the same
+    -- forced_key mechanism reused.
+    if _type == "star"
+    and area == G.pack_cards
+    and not forced_key then
 
         local stars = hex_get_star_centers()
         if #stars > 0 then
@@ -2977,6 +3029,53 @@ SMODS.ConsumableType{
     },
     can_stack = true,
     can_divide = true,
+}
+
+-- Star Pack: a Spectral-pack-style booster (3 cards shown, choose 1)
+-- whose contents are always drawn from this mod's own Star pool (see
+-- hex_get_star_centers above) instead of the normal Spectral/Tarot
+-- pools -- the create_card hook near the top of this file forces this
+-- whenever `_type == "star"`, which is exactly the string Steamodded
+-- passes through as a Booster's opening `_type` when its own `kind`
+-- field is set to "star" (matching both the ConsumableType key
+-- registered just above, and the `set = "star"` every Star card itself
+-- uses).
+--
+-- Hidden from the shop's normal pack-weight pool (in_pool = false)
+-- until the Nova voucher has been bought (see its own registration
+-- earlier in the file, alongside Legendary Soul/Mythic Heart), at which
+-- point it becomes available at exactly half of vanilla's own Spectral
+-- Normal pack weight -- i.e. "twice as rare" as a normal Spectral pack,
+-- per how it was requested. Read once, at registration time, straight
+-- off p_spectral_normal's own .weight (rather than a hardcoded number)
+-- so this stays in sync with whatever Spectral's own rarity actually is
+-- -- falling back to vanilla's own base value (0.6) only if that center
+-- somehow isn't registered yet at the point this file loads.
+SMODS.Booster{
+    key = "star_pack",
+    kind = "star",
+
+    atlas = "HexBoosters",
+    pos = { x = 0, y = 5 },
+
+    config = { extra = 3, choose = 1 },
+
+    loc_txt = {
+        name = "Star Pack",
+        text = {
+            "Choose {C:attention}1{} of {C:attention}3{}",
+            "{C:star}Star{} cards",
+        }
+    },
+
+    unlocked = true,
+    discovered = true,
+
+    in_pool = function(self)
+        return (G.GAME and G.GAME.hex_nova_unlocked) or false
+    end,
+
+    weight = ((G.P_CENTERS.p_spectral_normal and G.P_CENTERS.p_spectral_normal.weight) or 0.6) / 2,
 }
 
 -- Sol: rather than just knocking down the currently active blind's chip
@@ -6328,6 +6427,7 @@ function Game:start_run(...)
     G.GAME.hex_toi_125_used = G.GAME.hex_toi_125_used or false
     G.GAME.hex_vy_unlocked = G.GAME.hex_vy_unlocked or false
     G.GAME.hex_vy_used = G.GAME.hex_vy_used or false
+    G.GAME.hex_nova_unlocked = G.GAME.hex_nova_unlocked or false
 
     -- Re-apply the hyperoperator scoring calculation on resume/load, since
     -- G.GAME.current_scoring_calculation_key isn't guaranteed to survive it.
