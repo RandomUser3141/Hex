@@ -101,6 +101,7 @@ G.C.TRANSCENDENTAL = HEX("6817ff")
 G.C.DIVINE = HEX("ebb12a")
 G.C.RITUAL = HEX("8f0d0d")
 G.C.STAR = HEX("0045b5")
+G.C.GALAXY = HEX("8A2BE2")
 
 G.C.ABSOLUTE = {1, 0, 0, 1} -- initial color
 
@@ -156,6 +157,9 @@ function loc_colour(_c, _default)
     end
     if _c == "star" then
         return G.C.STAR
+    end
+    if _c == "galaxy" then
+        return G.C.GALAXY
     end
     return old_loc_colour(_c, _default)
 end
@@ -1150,9 +1154,47 @@ local function hex_get_star_centers()
     return out
 end
 
+-- Galaxies: like Stars, never appear in the shop (shop_rate = 0, set on
+-- the "galaxy" ConsumableType below) and are never part of the normal
+-- Spectral/Tarot draw pools -- every Galaxy card sets in_pool = false,
+-- the same way Stars/Rituals do. They're rarer than Stars in a
+-- Spectral/Arcana pack (1 in 50 vs Star's 1 in 33), and within this
+-- mod's own Star Pack, each slot additionally gets a 1-in-10 chance to
+-- come from the Galaxy pool instead of the Star pool. Both rates are
+-- applied in the create_card override below.
+local HEX_GALAXY_PACK_CHANCE = 1 / 50
+local HEX_GALAXY_IN_STARPACK_CHANCE = 1 / 10
+
+local function hex_get_galaxy_centers()
+    local out = {}
+
+    for _, center in pairs(G.P_CENTERS) do
+        if center.set == "galaxy" then
+            out[#out + 1] = center
+        end
+    end
+
+    return out
+end
+
 local old_create_card = create_card
 
 function create_card(_type, area, legendary, _rarity, skip_materialize, soulable, forced_key, key_append)
+
+    -- Galaxy cards get first crack at a Spectral/Tarot pack slot (1 in
+    -- 50 -- rarer than Star's 1 in 33 checked right after it). Both
+    -- gate on `not forced_key`, so whichever roll succeeds first is the
+    -- one that sticks; a slot can never be double-forced by both.
+    if (_type == "Spectral" or _type == "Tarot")
+    and area == G.pack_cards
+    and not forced_key
+    and pseudorandom(pseudoseed(mod.prefix .. "_galaxy_pack")) < HEX_GALAXY_PACK_CHANCE then
+
+        local galaxies = hex_get_galaxy_centers()
+        if #galaxies > 0 then
+            forced_key = galaxies[math.random(#galaxies)].key
+        end
+    end
 
     if (_type == "Spectral" or _type == "Tarot")
     and area == G.pack_cards
@@ -1167,17 +1209,28 @@ function create_card(_type, area, legendary, _rarity, skip_materialize, soulable
 
     -- Star Pack (this mod's own SMODS.Booster{ key = "star_pack",
     -- kind = "star" }): every card drawn from it is forced to come from
-    -- the Star pool, unconditionally -- unlike the 1-in-33 chance
-    -- injection into Spectral/Tarot packs just above, the whole pack is
-    -- Star-only, so there's no random gate here, just the same
-    -- forced_key mechanism reused.
+    -- either the Galaxy pool (1 in 10 chance) or, failing that, the Star
+    -- pool -- unlike the chance-based injection into Spectral/Tarot packs
+    -- just above (where a slot can just roll its own normal card and
+    -- never get forced_key set at all), every slot in this pack always
+    -- ends up forced to one pool or the other, so there's no "leave it
+    -- alone" outcome here, just which of the two pools wins.
     if _type == "star"
     and area == G.pack_cards
     and not forced_key then
 
-        local stars = hex_get_star_centers()
-        if #stars > 0 then
-            forced_key = stars[math.random(#stars)].key
+        if pseudorandom(pseudoseed(mod.prefix .. "_star_pack_galaxy")) < HEX_GALAXY_IN_STARPACK_CHANCE then
+            local galaxies = hex_get_galaxy_centers()
+            if #galaxies > 0 then
+                forced_key = galaxies[math.random(#galaxies)].key
+            end
+        end
+
+        if not forced_key then
+            local stars = hex_get_star_centers()
+            if #stars > 0 then
+                forced_key = stars[math.random(#stars)].key
+            end
         end
     end
 
@@ -2097,6 +2150,7 @@ end
 local HEX_PERKEO_BLOCKED_SETS = {
     ritual = true,
     star = true,
+    galaxy = true,
 }
 
 local hex_old_calculate_joker = Card.calculate_joker
@@ -2605,16 +2659,26 @@ SMODS.Joker{
 -- Hand button's enable/disable check, G.FUNCS.can_play, has its own
 -- hardcoded `#G.hand.highlighted > 5` in vanilla Balatro -- completely
 -- separate from highlighted_limit -- so it greys out past 5 regardless.
--- We override can_play to drop that hardcoded cap while Polydactyly is
--- owned. (can_discard has no equivalent hardcoded cap in vanilla, so it
+-- We override can_play to drop that hardcoded cap whenever the
+-- effective selection limit has actually been raised above 5 -- either
+-- because Polydactyly is owned (its own highlighted_limit override sets
+-- it all the way to 999995), or because Pinwheel Galaxy (Galaxy) has
+-- permanently bumped it a few points past 5 -- rather than only
+-- Polydactyly specifically, so Pinwheel Galaxy's bonus isn't silently
+-- capped back down to 5 the moment you actually try to play/discard.
+-- (can_discard has no equivalent hardcoded cap in vanilla, so it
 -- doesn't need a matching override.)
-local function hex_owns_polydactyly()
-    return SMODS.find_card and #SMODS.find_card("j_" .. mod.prefix .. "_polydactyly") > 0
+local function hex_selection_limit_raised()
+    if SMODS.find_card and #SMODS.find_card("j_" .. mod.prefix .. "_polydactyly") > 0 then
+        return true
+    end
+    return G.hand and G.hand.config
+        and (G.hand.config.highlighted_limit or HEX_POLY_DEFAULT_HAND_LIMIT) > HEX_POLY_DEFAULT_HAND_LIMIT
 end
 
 local old_can_play = G.FUNCS.can_play
 G.FUNCS.can_play = function(e)
-    if hex_owns_polydactyly() then
+    if hex_selection_limit_raised() then
         if #G.hand.highlighted <= 0 or (G.GAME.blind and G.GAME.blind.block_play) then
             e.config.colour = G.C.UI.BACKGROUND_INACTIVE
             e.config.button = nil
@@ -2630,12 +2694,13 @@ end
 -- Discard: this installed game's version of can_discard apparently also
 -- hardcodes an upper cap (unlike the source snapshot checked during
 -- development, which only gated on discards_left/highlighted<=0) -- same
--- symptom as can_play, same fix: bypass it entirely while Polydactyly is
--- owned and just gate on the two things that should actually matter,
+-- symptom as can_play, same fix: bypass it entirely whenever the
+-- effective selection limit has been raised (see hex_selection_limit_raised
+-- above) and just gate on the two things that should actually matter,
 -- discards remaining and having something highlighted.
 local old_can_discard = G.FUNCS.can_discard
 G.FUNCS.can_discard = function(e)
-    if hex_owns_polydactyly() then
+    if hex_selection_limit_raised() then
         if (G.GAME.current_round and (G.GAME.current_round.discards_left or 0) <= 0)
         or #G.hand.highlighted <= 0 then
             e.config.colour = G.C.UI.BACKGROUND_INACTIVE
@@ -3013,6 +3078,34 @@ SMODS.ConsumableType{
             name = "Undiscovered Star",
             text = {
                 "Use this Star",
+                "to discover it"
+            }
+        }
+    },
+    can_stack = true,
+    can_divide = true,
+}
+
+-- Galaxies: rarer cousins of Stars. Never appear in the shop (shop_rate
+-- = 0) and are never generated by the normal Spectral/Tarot draw pools
+-- (every Galaxy card sets in_pool = false, same as Stars/Rituals) --
+-- instead each Galaxy card is injected via the create_card hook above:
+-- a 1-in-50 chance to replace a Spectral/Arcana pack slot, or a 1-in-10
+-- chance to take a slot in this mod's own Star Pack instead of a Star.
+SMODS.ConsumableType{
+    key = "galaxy",
+    primary_colour = G.C.GALAXY,
+    secondary_colour = G.C.GALAXY,
+    badge_colour = G.C.GALAXY,
+    collection_rows = { 6, 6 },
+    shop_rate = 0,          -- never appears in normal shop generation
+    loc_txt = {
+        name = "Galaxy",
+        collection = "Galaxies",
+        undiscovered = {
+            name = "Undiscovered Galaxy",
+            text = {
+                "Use this Galaxy",
                 "to discover it"
             }
         }
@@ -4565,6 +4658,579 @@ SMODS.Consumable{
         card_eval_status_text(card, "extra", nil, nil, nil, {
             message = "+1 Slot",
             colour = G.C.STAR
+        })
+    end,
+}
+
+-- ============================================================
+-- Galaxy cards
+-- Rarer cousins of Star cards (see the "galaxy" ConsumableType and the
+-- HEX_GALAXY_PACK_CHANCE / HEX_GALAXY_IN_STARPACK_CHANCE-gated injection
+-- in the create_card hook above for how these actually enter play).
+-- The Milky Way is just a first example -- add more
+-- SMODS.Consumable{ set = "galaxy", ... } entries the same way to expand
+-- the pool; every one of them is automatically picked up by
+-- hex_get_galaxy_centers().
+-- ============================================================
+
+-- The Milky Way: converts current money into Hex points at a rate of 1
+-- Hex point per $10 (rounded down), capped at a maximum single-use gain
+-- of 100 Hex points, then divides whatever money is left over by 10
+-- (also rounded down) -- so cashing this in on, say, $850 grants the
+-- capped 100 Hex points and leaves $85 behind, while cashing it in on
+-- $40 grants 4 Hex points and leaves $4 behind. Plain math.floor/math.min
+-- is used throughout (not the big()/OmegaNum helpers) since dollars are
+-- always an ordinary Lua number, never scaled past double-precision
+-- range the way Hex points or scoring Chips/Mult can be.
+SMODS.Consumable{
+    key = "the_milky_way",
+    set = "galaxy",
+
+    atlas = "HexStarsGalaxies",
+    pos = { x = 0, y = 3 }, 
+    unlocked = true,
+    discovered = true,
+
+    in_pool = function(self)
+        return false -- never naturally drawn from a pool; only ever handed out via the Spectral/Arcana/Star-pack hook
+    end,
+
+    loc_txt = {
+        name = "The Milky Way",
+        text = {
+            "Gain {C:purple}1{} Hex point for every",
+            "{C:money}$10{} you have",
+            "{C:inactive}(Max of 100 Hex points){}",
+            "Then divides your {C:money}money{}",
+            "by {C:money}10{}",
+        }
+    },
+
+    can_use = function(self, card)
+        return true
+    end,
+
+    use = function(self, card)
+        local dollars = (G.GAME and G.GAME.dollars) or 0
+        local gain = math.min(100, math.floor(dollars / 10))
+
+        if gain > 0 then
+            G.GAME.hex_points = (G.GAME.hex_points or big(0)) + big(gain)
+        end
+
+        G.GAME.dollars = math.floor(dollars / 10)
+
+        card_eval_status_text(card, "extra", nil, nil, nil, {
+            message = "+" .. tostring(gain) .. " Hex",
+            colour = G.C.GALAXY
+        })
+    end,
+}
+
+-- Andromeda: destroys one random currently-owned Joker, then creates a
+-- random Legendary (rarity 4) Joker. Eternal Jokers are never eligible
+-- to be the one destroyed -- same protection vanilla's own destroy
+-- effects respect -- and neither is anything carrying this mod's own
+-- Immortal sticker (see HEX_IMMORTAL_STICKER_KEY/hex_apply_immortal_sticker
+-- near the top of the file), so Absolute (which is always Immortal) can
+-- never be sacrificed by this either. can_use gates on at least one
+-- eligible (non-Eternal, non-Immortal) Joker existing, since without one
+-- there's nothing this card is allowed to destroy; use() re-checks the
+-- same eligible pool as a second guard. The destroy animation plays
+-- first, and the Legendary Joker is created shortly after, mirroring the
+-- stagger already used for Relic Deck's own Legendary grant elsewhere in
+-- this file (pool-scan + math.random rather than pseudorandom_element,
+-- since some Legendary Jokers -- from this or other mods -- may set
+-- in_pool = false, which pseudorandom_element would otherwise filter
+-- out).
+local function hex_andromeda_eligible_jokers()
+    local out = {}
+    if not (G.jokers and G.jokers.cards) then return out end
+
+    for _, j in ipairs(G.jokers.cards) do
+        local eternal = j.ability and j.ability.eternal
+        local immortal = j.ability and j.ability[HEX_IMMORTAL_STICKER_KEY]
+        if not eternal and not immortal then
+            out[#out + 1] = j
+        end
+    end
+
+    return out
+end
+
+SMODS.Consumable{
+    key = "andromeda",
+    set = "galaxy",
+
+    atlas = "HexStarsGalaxies",
+    pos = { x = 1, y = 3 },
+
+    unlocked = true,
+    discovered = true,
+
+    in_pool = function(self)
+        return false -- never naturally drawn from a pool; only ever handed out via the Spectral/Arcana/Star-pack hook
+    end,
+
+    loc_txt = {
+        name = "Andromeda",
+        text = {
+            "Destroys {C:attention}1{} random Joker,",
+            "then creates a random",
+            "{C:legendary}Legendary{} Joker",
+            "{C:inactive}(Can't destroy{}",
+            "{C:inactive}Eternal or Immortal Jokers){}",
+        }
+    },
+
+    can_use = function(self, card)
+        return #hex_andromeda_eligible_jokers() > 0
+    end,
+
+    use = function(self, card)
+        local eligible = hex_andromeda_eligible_jokers()
+        if not eligible[1] then return end
+
+        local to_destroy = pseudorandom_element(eligible, pseudoseed(mod.prefix .. "_andromeda_destroy"))
+
+        G.E_MANAGER:add_event(Event({
+            trigger = "after",
+            delay = 0.1,
+            func = function()
+                to_destroy:start_dissolve()
+                return true
+            end
+        }))
+
+        local legendaries = {}
+        for _, center in pairs(G.P_CENTERS) do
+            if center.set == "Joker" and center.rarity == 4 then
+                legendaries[#legendaries + 1] = center
+            end
+        end
+
+        if #legendaries > 0 then
+            local chosen = legendaries[math.random(#legendaries)]
+
+            -- NOTE: deliberately not gated on `#G.jokers.cards <
+            -- G.jokers.config.card_limit` here. card:start_dissolve()
+            -- above only *visually* dissolves the destroyed Joker over
+            -- time -- it doesn't necessarily drop out of G.jokers.cards
+            -- the instant this event fires, so checking the live card
+            -- count here could still see the area as "full" and silently
+            -- skip creating the Legendary, even though this is always a
+            -- guaranteed 1-for-1 swap (we already committed to destroying
+            -- exactly one Joker to make room for exactly one Legendary).
+            -- Mirrors Absolute's own summon function elsewhere in this
+            -- file, which destroys first and creates unconditionally
+            -- after, for the same reason.
+            G.E_MANAGER:add_event(Event({
+                trigger = "after",
+                delay = 0.5,
+                func = function()
+                    local new_card = SMODS.create_card({
+                        set = "Joker",
+                        key = chosen.key,
+                        area = G.jokers
+                    })
+
+                    G.jokers:emplace(new_card)
+                    new_card:add_to_deck()
+
+                    card_eval_status_text(new_card, "extra", nil, nil, nil, {
+                        message = "ANDROMEDA!",
+                        colour = G.C.GALAXY
+                    })
+
+                    return true
+                end
+            }))
+        end
+
+        card_eval_status_text(card, "extra", nil, nil, nil, {
+            message = "Destroyed!",
+            colour = G.C.GALAXY
+        })
+    end,
+}
+
+-- Triangulum Galaxy: gives one selected playing card a Green Seal. Same
+-- "select exactly one card from hand, then use" pattern Cappella (Black
+-- Seal) and Pistol Star (Orange Seal) already use above -- can_use gates
+-- on exactly one highlighted card in G.hand, and use() applies the seal
+-- to that card via Card:set_seal, passing this mod's own "green" seal
+-- key the same way Cappella/Pistol Star pass their own mod-prefixed keys.
+SMODS.Consumable{
+    key = "triangulum_galaxy",
+    set = "galaxy",
+
+    atlas = "HexStarsGalaxies",
+    pos = { x = 2, y = 3 }, 
+
+    unlocked = true,
+    discovered = true,
+
+    in_pool = function(self)
+        return false -- never naturally drawn from a pool; only ever handed out via the Spectral/Arcana/Star-pack hook
+    end,
+
+    loc_txt = {
+        name = "Triangulum Galaxy",
+        text = {
+            "Gives {C:attention}1{} selected",
+            "playing card a",
+            "{C:green}Green Seal{}",
+        }
+    },
+
+    can_use = function(self, card)
+        return G.hand and G.hand.highlighted and #G.hand.highlighted == 1
+    end,
+
+    use = function(self, card)
+        if not (G.hand and G.hand.highlighted and G.hand.highlighted[1]) then return end
+
+        local target = G.hand.highlighted[1]
+        target:set_seal(mod.prefix .. "_green", true)
+
+        card_eval_status_text(target, "extra", nil, nil, nil, {
+            message = "Green Seal",
+            colour = G.C.GALAXY
+        })
+    end,
+}
+
+-- Sombrero Galaxy: creates 4 Negative Star cards, staggered by a short
+-- delay each (same staggering technique Proxima Centauri/Rigel already
+-- use above so their materialize animations don't perfectly overlap).
+-- SMODS.create_card with `set = "star"` (no `key`) behaves like a normal
+-- draw from the Star pool -- the same shortcut Rigel's own Planet/Tarot/
+-- Spectral grants use for their respective types -- so every card here
+-- is a genuinely random Star, just always Negative. Deliberately no
+-- consumable-slot-limit check here, matching Rigel's own precedent
+-- immediately above it in this file: all 4 are always created regardless
+-- of how full G.consumeables already is, the same way Negative Jokers
+-- ignore the Joker slot limit elsewhere in this file.
+SMODS.Consumable{
+    key = "sombrero_galaxy",
+    set = "galaxy",
+
+    atlas = "HexStarsGalaxies",
+    pos = { x = 4, y = 3 },
+
+    unlocked = true,
+    discovered = true,
+
+    in_pool = function(self)
+        return false -- never naturally drawn from a pool; only ever handed out via the Spectral/Arcana/Star-pack hook
+    end,
+
+    loc_txt = {
+        name = "Sombrero Galaxy",
+        text = {
+            "Creates {C:attention}4{} {C:attention}Negative{}",
+            "{C:star}Star{} cards",
+        }
+    },
+
+    can_use = function(self, card)
+        return true
+    end,
+
+    use = function(self, card)
+        for i = 1, 4 do
+            G.E_MANAGER:add_event(Event({
+                trigger = "after",
+                delay = 0.2 * i,
+                func = function()
+                    if G.consumeables then
+                        -- Star cards all set in_pool = false (see the
+                        -- "star" ConsumableType and every Star card's own
+                        -- registration above), so a plain
+                        -- SMODS.create_card({ set = "star" }) call would
+                        -- draw from an empty pool and fail. Same fix
+                        -- Sol/Sirius/etc.'s own injection into packs
+                        -- uses: pick a random center from
+                        -- hex_get_star_centers() ourselves and force that
+                        -- exact key.
+                        local stars = hex_get_star_centers()
+                        if #stars > 0 then
+                            local chosen = stars[math.random(#stars)]
+
+                            local new_card = SMODS.create_card({
+                                key = chosen.key,
+                                area = G.consumeables
+                            })
+
+                            new_card:set_edition({ negative = true }, true)
+
+                            G.consumeables:emplace(new_card)
+                        end
+                    end
+                    return true
+                end
+            }))
+        end
+
+        card_eval_status_text(card, "extra", nil, nil, nil, {
+            message = "+4 Negative",
+            colour = G.C.GALAXY
+        })
+    end,
+}
+
+-- Cigar Galaxy: picks one currently-owned Joker *without* an edition
+-- already and gives it a random Prismatic/Chromatic/Brilliant edition --
+-- this mod's own custom editions (see the SMODS.Edition{ key =
+-- "prismatic"/"chromatic"/"brilliant", ... } registrations near the top
+-- of the file), applied the same restriction-and-selection pattern
+-- Barnard's Star (Star) uses above for vanilla's own Foil/Holo/
+-- Polychrome. Eligible pool is built by filtering G.jokers.cards down to
+-- cards with no card.edition set, then picked from with the same
+-- pseudorandom_element pattern Barnard's Star uses. can_use (and use, as
+-- a second guard in case the eligible set changes between opening the
+-- menu and clicking) both require at least one editionless Joker to
+-- exist. Note the "_" .. mod.prefix .. "_" prefix on each edition key
+-- below -- these are modded editions, so set_edition needs the exact
+-- same mod-prefixed key the create_card hook's own random-roll code uses
+-- elsewhere in this file (e.g. `[mod.prefix .. "_prismatic"] = true`),
+-- unlike vanilla's own bare "foil"/"holo"/"polychrome" keys.
+SMODS.Consumable{
+    key = "cigar_galaxy",
+    set = "galaxy",
+
+    atlas = "HexStarsGalaxies",
+    pos = { x = 5, y = 3 },
+
+    unlocked = true,
+    discovered = true,
+
+    in_pool = function(self)
+        return false -- never naturally drawn from a pool; only ever handed out via the Spectral/Arcana/Star-pack hook
+    end,
+
+    loc_txt = {
+        name = "Cigar Galaxy",
+        text = {
+            "Gives a {C:attention}random{} Joker",
+            "{C:attention}without an Edition{}",
+            "{C:purple}Prismatic{}, {C:blue}Chromatic{},",
+            "or {C:blue}Brilliant{}",
+        }
+    },
+
+    -- Shared helper so can_use and use always agree on what's eligible.
+    can_use = function(self, card)
+        if not (G.jokers and G.jokers.cards) then return false end
+
+        for _, j in ipairs(G.jokers.cards) do
+            if not j.edition then
+                return true
+            end
+        end
+
+        return false
+    end,
+
+    use = function(self, card)
+        if not (G.jokers and G.jokers.cards) then return end
+
+        local eligible = {}
+        for _, j in ipairs(G.jokers.cards) do
+            if not j.edition then
+                eligible[#eligible + 1] = j
+            end
+        end
+
+        if not eligible[1] then return end
+
+        local chosen_joker = pseudorandom_element(
+            eligible,
+            pseudoseed(mod.prefix .. "_cigar_galaxy_joker")
+        )
+
+        local editions = {
+            mod.prefix .. "_prismatic",
+            mod.prefix .. "_chromatic",
+            mod.prefix .. "_brilliant",
+        }
+        local chosen_edition = pseudorandom_element(
+            editions,
+            pseudoseed(mod.prefix .. "_cigar_galaxy_edition")
+        )
+
+        chosen_joker:set_edition({ [chosen_edition] = true }, true)
+
+        card_eval_status_text(chosen_joker, "extra", nil, nil, nil, {
+            message = localize("k_upgrade_ex"),
+            colour = G.C.GALAXY
+        })
+    end,
+}
+
+-- Antennae Galaxies: picks one currently-owned Joker *without* an
+-- edition already and makes it Negative -- same restriction-and-
+-- selection pattern Cigar Galaxy/Barnard's Star use just above, just
+-- with vanilla's own bare "negative" key instead of a mod-prefixed
+-- custom edition, and no roll needed since there's only one possible
+-- outcome. can_use (and use, as a second guard) both require at least
+-- one editionless Joker to exist.
+SMODS.Consumable{
+    key = "antennae_galaxies",
+    set = "galaxy",
+
+    atlas = "HexStarsGalaxies",
+    pos = { x = 6, y = 3 }, 
+    unlocked = true,
+    discovered = true,
+
+    in_pool = function(self)
+        return false -- never naturally drawn from a pool; only ever handed out via the Spectral/Arcana/Star-pack hook
+    end,
+
+    loc_txt = {
+        name = "Antennae Galaxies",
+        text = {
+            "Makes a {C:attention}random{} Joker",
+            "{C:attention}without an Edition{}",
+            "{C:dark_red}Negative{}",
+        }
+    },
+
+    -- Shared helper so can_use and use always agree on what's eligible.
+    can_use = function(self, card)
+        if not (G.jokers and G.jokers.cards) then return false end
+
+        for _, j in ipairs(G.jokers.cards) do
+            if not j.edition then
+                return true
+            end
+        end
+
+        return false
+    end,
+
+    use = function(self, card)
+        if not (G.jokers and G.jokers.cards) then return end
+
+        local eligible = {}
+        for _, j in ipairs(G.jokers.cards) do
+            if not j.edition then
+                eligible[#eligible + 1] = j
+            end
+        end
+
+        if not eligible[1] then return end
+
+        local chosen_joker = pseudorandom_element(
+            eligible,
+            pseudoseed(mod.prefix .. "_antennae_galaxies_joker")
+        )
+
+        chosen_joker:set_edition({ negative = true }, true)
+
+        card_eval_status_text(chosen_joker, "extra", nil, nil, nil, {
+            message = localize("k_upgrade_ex"),
+            colour = G.C.GALAXY
+        })
+    end,
+}
+
+-- Hoag's Object: levels up every poker hand by however many times that
+-- exact hand has been played so far this run. G.GAME.hands[key].played
+-- is vanilla's own running play-count for each hand type (the same
+-- field vanilla tracks for stats/achievements), so this reads that
+-- straight off rather than keeping any separate counter of its own.
+-- Uses vanilla's own level_up_hand(card, hand_key, bypass_visual, amount)
+-- function -- the same one Vega (Star) and Canopus's Black Hole bonus
+-- both call above -- passing bypass_visual = true (like Canopus's loop)
+-- since this can be leveling up several hands at once and a popup for
+-- every single one would be excessive. Hands that haven't been played at
+-- all this run (played == 0) are skipped entirely, since leveling them
+-- by 0 would do nothing anyway.
+SMODS.Consumable{
+    key = "hoags_object",
+    set = "galaxy",
+
+    atlas = "HexStarsGalaxies",
+    pos = { x = 7, y = 3 },
+
+    unlocked = true,
+    discovered = true,
+
+    in_pool = function(self)
+        return false -- never naturally drawn from a pool; only ever handed out via the Spectral/Arcana/Star-pack hook
+    end,
+
+    loc_txt = {
+        name = "Hoag's Object",
+        text = {
+            "Levels up {C:attention}every{} poker hand",
+            "by how many times",
+            "it's been {C:attention}played{} this run",
+        }
+    },
+
+    can_use = function(self, card)
+        return true
+    end,
+
+    use = function(self, card)
+        if G.GAME and G.GAME.hands then
+            for k, hand in pairs(G.GAME.hands) do
+                local times_played = hand.played or 0
+                if times_played > 0 then
+                    level_up_hand(card, k, true, times_played)
+                end
+            end
+        end
+
+        card_eval_status_text(card, "extra", nil, nil, nil, {
+            message = "Level Up!",
+            colour = G.C.GALAXY
+        })
+    end,
+}
+
+-- Pinwheel Galaxy: permanently raises how many playing cards can be
+-- highlighted at once by +1 per use, stacking uncapped. The actual
+-- application lives in the Game:update poll further down the file
+-- (right next to Polydactyly's own highlighted_limit override), which
+-- reads this same persistent counter (hex_pinwheel_bonus_limit) every
+-- frame -- this use function just increments it.
+SMODS.Consumable{
+    key = "pinwheel_galaxy",
+    set = "galaxy",
+
+    atlas = "HexStarsGalaxies",
+    pos = { x = 8, y = 3 }, 
+
+    unlocked = true,
+    discovered = true,
+
+    in_pool = function(self)
+        return false -- never naturally drawn from a pool; only ever handed out via the Spectral/Arcana/Star-pack hook
+    end,
+
+    loc_txt = {
+        name = "Pinwheel Galaxy",
+        text = {
+            "Permanently gain",
+            "{C:attention}+1{} selection limit",
+            "for playing cards",
+        }
+    },
+
+    can_use = function(self, card)
+        return true
+    end,
+
+    use = function(self, card)
+        G.GAME.hex_pinwheel_bonus_limit = (G.GAME.hex_pinwheel_bonus_limit or 0) + 1
+
+        card_eval_status_text(card, "extra", nil, nil, nil, {
+            message = "+1 Limit",
+            colour = G.C.GALAXY
         })
     end,
 }
@@ -6318,8 +6984,20 @@ function Game:update(dt)
         local owns_polydactyly = #SMODS.find_card("j_" .. mod.prefix .. "_polydactyly") > 0
         if owns_polydactyly then
             G.hand.config.highlighted_limit = 999995
-        elseif G.hand.config.highlighted_limit == 999995 then
-            G.hand.config.highlighted_limit = HEX_POLY_DEFAULT_HAND_LIMIT
+        else
+            -- Pinwheel Galaxy: permanently raises the normal 5-card
+            -- selection limit by +1 per use, stacking uncapped -- stored
+            -- as a persistent counter on G.GAME (hex_pinwheel_bonus_limit,
+            -- starting at 0) the same way Sirius/Pollux/Castor's own
+            -- permanent bonuses are elsewhere in this file. Pinned every
+            -- frame here (same trick as Coupon's reroll-cost pin above)
+            -- rather than only applied once, so it survives anything else
+            -- that might otherwise reset G.hand.config.highlighted_limit.
+            -- While Polydactyly is owned, its own effectively-infinite
+            -- limit above takes over completely and this bonus is simply
+            -- not relevant.
+            local pinwheel_bonus = G.GAME.hex_pinwheel_bonus_limit or 0
+            G.hand.config.highlighted_limit = HEX_POLY_DEFAULT_HAND_LIMIT + pinwheel_bonus
         end
     end
 
@@ -6418,6 +7096,7 @@ function Game:start_run(...)
     G.GAME.hex_vy_unlocked = G.GAME.hex_vy_unlocked or false
     G.GAME.hex_vy_used = G.GAME.hex_vy_used or false
     G.GAME.hex_nova_unlocked = G.GAME.hex_nova_unlocked or false
+    G.GAME.hex_pinwheel_bonus_limit = G.GAME.hex_pinwheel_bonus_limit or 0
 
     -- Re-apply the hyperoperator scoring calculation on resume/load, since
     -- G.GAME.current_scoring_calculation_key isn't guaranteed to survive it.
