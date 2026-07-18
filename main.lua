@@ -286,35 +286,7 @@ local R_HEX_ABSOLUTE = SMODS.Rarity{
 
 
 
--- ============================================================
--- Custom Edition abilities: Prismatic / Chromatic / Brilliant /
--- Radiant / Empowered
--- ============================================================
--- Steamodded's own Calculate-Functions docs give dedicated contexts for
--- an Edition's own effect, separate from a card's main ability:
---   * Playing cards: `context.main_scoring and context.cardarea == G.play`
---     -- documented verbatim as "the effects from playing cards when
---     they are scored... used for enhancements, editions and seals".
---   * Jokers: editions on a Joker fire on `context.pre_joker` (additive
---     chips/mult, before the Joker's own scoring) or `context.post_joker`
---     (Xmult/Xchips-style scaling, after the Joker's own scoring) --
---     NOT `context.joker_main`, which is the Joker's own ability, and
---     NOT `context.individual`, which is how *other* Jokers react to
---     each scored playing card (that's what was causing a Joker's
---     edition to fire on every unrelated card's trigger before).
--- Since all five editions here are "scale the current total" effects,
--- the same category vanilla's own Polychrome (Xmult) falls into, they
--- use `context.post_joker` for the Joker case.
---
--- All five reuse Amulet's OmegaNum arrow(level, power) the same way
--- Musa Acuminata/Lemniscate/Juno/Eclipse do elsewhere in this file
--- (arrow(1,x) = ordinary exponent, arrow(2,x) = tetration, arrow(3,x) =
--- pentation), applied via a `func` that mutates the scoring loop's
--- global `chips`/`mult` directly -- the same trick those Jokers' own
--- calculate functions use -- then refreshes the on-screen hand text.
--- Trim edition context check to playing cards only; Jokers now handled
--- explicitly below via Card:calculate_joker, since context.post_joker
--- doesn't reliably fire with valid chips/mult globals in this build.
+
 
 local function hex_edition_context_ok(context)
     if context.post_joker then
@@ -331,6 +303,38 @@ end
 SMODS.Shader({
     key = "prismatic",
     path = "prismatic.fs",
+    send = function(self, shader, card)
+        shader:send("time", G.TIMERS.REAL)
+    end
+})
+
+SMODS.Shader({
+    key = "chromatic",
+    path = "chromatic.fs",
+    send = function(self, shader, card)
+        shader:send("time", G.TIMERS.REAL)
+    end
+})
+
+SMODS.Shader({
+    key = "brilliant",
+    path = "brilliant.fs",
+    send = function(self, shader, card)
+        shader:send("time", G.TIMERS.REAL)
+    end
+})
+
+SMODS.Shader({
+    key = "radiant",
+    path = "radiant.fs",
+    send = function(self, shader, card)
+        shader:send("time", G.TIMERS.REAL)
+    end
+})
+
+SMODS.Shader({
+    key = "empowered",
+    path = "empowered.fs",
     send = function(self, shader, card)
         shader:send("time", G.TIMERS.REAL)
     end
@@ -375,14 +379,6 @@ SMODS.Edition{
     end,
 
 }
-
-SMODS.Shader({
-    key = "chromatic",
-    path = "chromatic.fs",
-    send = function(self, shader, card)
-        shader:send("time", G.TIMERS.REAL)
-    end
-})
 
 SMODS.Edition{
     key = "chromatic",
@@ -429,14 +425,6 @@ SMODS.Edition{
 
 }
 
-SMODS.Shader({
-    key = "brilliant",
-    path = "brilliant.fs",
-    send = function(self, shader, card)
-        shader:send("time", G.TIMERS.REAL)
-    end
-})
-
 SMODS.Edition{
     key = "brilliant",
 
@@ -481,16 +469,7 @@ SMODS.Edition{
     end,
 }
 
-
 G.C.HEX_RADIANT = HEX("FFD700") -- gold, used for Radiant text
-
-SMODS.Shader({
-    key = "radiant",
-    path = "radiant.fs",
-    send = function(self, shader, card)
-        shader:send("time", G.TIMERS.REAL)
-    end
-})
 
 SMODS.Edition{
     key = "radiant",
@@ -541,14 +520,6 @@ SMODS.Edition{
 
 G.C.HEX_EMPOWERED = HEX("9D4EDD") -- violet, used for Infused edition's badge/text
 
-SMODS.Shader({
-    key = "empowered",
-    path = "empowered.fs",
-    send = function(self, shader, card)
-        shader:send("time", G.TIMERS.REAL)
-    end
-})
-
 SMODS.Edition{
     key = "empowered",
 
@@ -588,7 +559,6 @@ SMODS.Edition{
         if context.after then card.config.trigger = nil end
     end,
 }
-
 
 
 -- Colour used for the Orange Seal's badge/description text -- vanilla
@@ -1224,9 +1194,29 @@ function create_card(_type, area, legendary, _rarity, skip_materialize, soulable
 
     if _type == "Joker" and pseudorandom(mod.prefix .. "_prismatic_joker") < 0.005 then
     card:set_edition({
-        ["prismatic"] = true
+        [mod.prefix .. "_prismatic"] = true
     }, true)
-    print("[hex] rolled Prismatic on create_card, resulting edition key=" .. tostring(card.edition and card.edition.key))
+    end
+ 
+    if _type == "Joker" and pseudorandom(mod.prefix .. "_chromatic_joker") < 0.01 then
+    card:set_edition({
+        [mod.prefix .. "_chromatic"] = true
+    }, true)
+    end
+    if _type == "Joker" and pseudorandom(mod.prefix .. "_brilliant_joker") < 0.005 then
+    card:set_edition({
+        [mod.prefix .. "_brilliant"] = true
+    }, true)
+    end
+    if _type == "Joker" and pseudorandom(mod.prefix .. "_radiant_joker") < 0.0001 then
+    card:set_edition({
+        [mod.prefix .. "_radiant"] = true
+    }, true)
+    end
+    if _type == "Joker" and pseudorandom(mod.prefix .. "_empowered_joker") < 0.00001 then
+    card:set_edition({
+        [mod.prefix .. "_empowered"] = true
+    }, true)
     end
 
     -- Negative Deck: while selected, give Jokers an extra, independent
@@ -6748,7 +6738,7 @@ G.FUNCS.summon_transcendental = function()
             })
 
             G.jokers:emplace(card)
-
+            card:add_to_deck()
             card_eval_status_text(card, "extra", nil, nil, nil, {
                 message = "TRANSCENDENTAL!",
                 colour = G.C.TRANSCENDENTAL
@@ -6810,7 +6800,7 @@ G.FUNCS.summon_divine = function()
             })
 
             G.jokers:emplace(card)
-
+            card:add_to_deck()
             card_eval_status_text(card, "extra", nil, nil, nil, {
                 message = "DIVINE!",
                 colour = G.C.DIVINE
@@ -6896,7 +6886,7 @@ G.FUNCS.summon_absolute = function()
             })
 
             G.jokers:emplace(card)
-
+            card:add_to_deck()
             -- Absolute itself is permanently granted the Immortal sticker
             -- the moment it's summoned (and, as part of the same call,
             -- has any randomly-rolled Eternal/Perishable stripped off so
