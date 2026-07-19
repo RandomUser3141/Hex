@@ -3432,6 +3432,7 @@ SMODS.Booster{
 
     loc_txt = {
         name = "Star Pack",
+        group_name = "Star Pack",
         text = {
             "Choose {C:attention}1{} of {C:attention}3{}",
             "{C:star}Star{} cards",
@@ -3440,6 +3441,7 @@ SMODS.Booster{
 
     unlocked = true,
     discovered = true,
+    draw_hand = true,
 
     in_pool = function(self)
         return (G.GAME and G.GAME.hex_nova_unlocked) or false
@@ -3471,6 +3473,7 @@ SMODS.Booster{
         return {
             key = chosen_key,
             area = G.pack_cards,
+            skip_materialize = true,
         }
     end,
 }
@@ -4093,6 +4096,11 @@ end
 -- the original Black Hole logic, so its own hardcoded '+1' text gets
 -- rewritten via the update_hand_text wrapper above, then apply the extra
 -- levels on top exactly as before once the original call returns.
+local HEX_STAR_PICK_PACK_HOLD = {
+    ["c_" .. mod.prefix .. "_betelgeuse"] = true,
+    ["c_" .. mod.prefix .. "_antares"] = true,
+}
+
 local hex_old_use_consumeable = Card.use_consumeable
 
 function Card:use_consumeable(area, copier)
@@ -4102,6 +4110,20 @@ function Card:use_consumeable(area, copier)
     if is_black_hole then
         bonus = (G.GAME and G.GAME.hex_canopus_bonus_levels) or 0
         hex_black_hole_display_total = 1 + bonus
+    end
+
+    -- NEW: Betelgeuse / Antares open a menu instead of resolving
+    -- immediately, but vanilla still decrements the pack's choice count
+    -- the instant use_consumeable returns -- closing the pack out from
+    -- under the picker. Cancel that decrement out here; it's paid back
+    -- once the picker actually resolves (see the exit_overlay_menu hook
+    -- further down the file).
+    if area == G.pack_cards
+    and self.config and self.config.center
+    and HEX_STAR_PICK_PACK_HOLD[self.config.center.key]
+    and G.GAME and G.GAME.pack_choices then
+        G.GAME.pack_choices = G.GAME.pack_choices + 1
+        G.HEX_STAR_PICK_PACK_HELD = true
     end
 
     local ret = hex_old_use_consumeable(self, area, copier)
@@ -6752,6 +6774,8 @@ G.HEX_STAR_PICK_ACTIVE = false
 G.HEX_STAR_PICK_MODE = nil     -- "rank" or "suit"
 G.HEX_STAR_PICK_TARGETS = {}   -- the specific playing cards being changed
 G.HEX_STAR_PICK_TITLE = ""
+G.HEX_STAR_PICK_PACK_HELD = false -- true while we're holding a pack's choice-count open for the picker
+
 
 local HEX_STAR_PICK_OPTIONS = {
     rank = function() return HEX_MANIFEST_RANKS end,
@@ -6968,6 +6992,15 @@ end
 -- together no matter which menu was actually open).
 local hex_star_pick_old_exit_overlay_menu = G.FUNCS.exit_overlay_menu
 G.FUNCS.exit_overlay_menu = function(e)
+    -- Pay back the pack-choice we borrowed in Card:use_consumeable,
+    -- whether the picker closed via a real pick, Cancel, or Back --
+    -- this fires on every path since they all route through
+    -- exit_overlay_menu eventually.
+    if G.HEX_STAR_PICK_PACK_HELD and G.GAME and G.GAME.pack_choices then
+        G.GAME.pack_choices = math.max(0, G.GAME.pack_choices - 1)
+        G.HEX_STAR_PICK_PACK_HELD = false
+    end
+
     G.HEX_STAR_PICK_ACTIVE = false
     return hex_star_pick_old_exit_overlay_menu(e)
 end
