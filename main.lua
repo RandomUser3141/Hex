@@ -1459,16 +1459,9 @@ local function hex_get_star_centers()
     return out
 end
 
--- Galaxies: like Stars, never appear in the shop (shop_rate = 0, set on
--- the "galaxy" ConsumableType below) and are never part of the normal
--- Spectral/Tarot draw pools -- every Galaxy card sets in_pool = false,
--- the same way Stars/Rituals do. They're rarer than Stars in a
--- Spectral/Arcana pack (1 in 50 vs Star's 1 in 33), and within this
--- mod's own Star Pack, each slot additionally gets a 1-in-10 chance to
--- come from the Galaxy pool instead of the Star pool. Both rates are
--- applied in the create_card override below.
-local HEX_GALAXY_PACK_CHANCE = 1 / 50
-local HEX_GALAXY_IN_STARPACK_CHANCE = 1 / 10
+
+local HEX_GALAXY_PACK_CHANCE = 1 / 66
+local HEX_GALAXY_IN_STARPACK_CHANCE = 1 / 33
 
 local function hex_get_galaxy_centers()
     local out = {}
@@ -1512,32 +1505,6 @@ function create_card(_type, area, legendary, _rarity, skip_materialize, soulable
         end
     end
 
-    -- Star Pack (this mod's own SMODS.Booster{ key = "star_pack",
-    -- kind = "star" }): every card drawn from it is forced to come from
-    -- either the Galaxy pool (1 in 10 chance) or, failing that, the Star
-    -- pool -- unlike the chance-based injection into Spectral/Tarot packs
-    -- just above (where a slot can just roll its own normal card and
-    -- never get forced_key set at all), every slot in this pack always
-    -- ends up forced to one pool or the other, so there's no "leave it
-    -- alone" outcome here, just which of the two pools wins.
-    if _type == "star"
-    and area == G.pack_cards
-    and not forced_key then
-
-        if pseudorandom(pseudoseed(mod.prefix .. "_star_pack_galaxy")) < HEX_GALAXY_IN_STARPACK_CHANCE then
-            local galaxies = hex_get_galaxy_centers()
-            if #galaxies > 0 then
-                forced_key = galaxies[math.random(#galaxies)].key
-            end
-        end
-
-        if not forced_key then
-            local stars = hex_get_star_centers()
-            if #stars > 0 then
-                forced_key = stars[math.random(#stars)].key
-            end
-        end
-    end
 
     local card = old_create_card(
         _type,
@@ -2709,7 +2676,7 @@ SMODS.Joker{
     },
 
     atlas = "HexJokers",
-    pos = { x = 7, y = 0 },
+    pos = { x = 8, y = 0 },
 
     rarity = 3,
     in_pool = function(self)
@@ -3479,6 +3446,33 @@ SMODS.Booster{
     end,
 
     weight = ((G.P_CENTERS.p_spectral_normal and G.P_CENTERS.p_spectral_normal.weight) or 0.6) / 2,
+
+    create_card = function(self, card, i)
+        local chosen_key = nil
+
+        if pseudorandom(pseudoseed(mod.prefix .. "_star_pack_galaxy")) < HEX_GALAXY_IN_STARPACK_CHANCE then
+            local galaxies = hex_get_galaxy_centers()
+            if #galaxies > 0 then
+                chosen_key = galaxies[math.random(#galaxies)].key
+            end
+        end
+
+        if not chosen_key then
+            local stars = hex_get_star_centers()
+            if #stars > 0 then
+                chosen_key = stars[math.random(#stars)].key
+            end
+        end
+
+        if not chosen_key then
+            return { set = "Joker", area = G.pack_cards }
+        end
+
+        return {
+            key = chosen_key,
+            area = G.pack_cards,
+        }
+    end,
 }
 
 -- Sol: rather than just knocking down the currently active blind's chip
@@ -3517,7 +3511,7 @@ SMODS.Consumable{
     discovered = true,
 
     in_pool = function(self)
-        return false -- never naturally drawn from a pool; only ever handed out via the Spectral/Arcana pack hook
+        return true
     end,
 
     loc_txt = {
@@ -3576,7 +3570,7 @@ SMODS.Consumable{
     discovered = true,
 
     in_pool = function(self)
-        return false -- never naturally drawn from a pool; only ever handed out via the Spectral/Arcana pack hook
+        return true
     end,
 
     loc_txt = {
@@ -3624,9 +3618,9 @@ SMODS.Consumable{
     discovered = true,
 
     in_pool = function(self)
-        return false -- never naturally drawn from a pool; only ever handed out via the Spectral/Arcana pack hook
+        return true
     end,
-
+    
     loc_txt = {
         name = "Deneb",
         text = {
@@ -3665,7 +3659,7 @@ SMODS.Consumable{
     discovered = true,
 
     in_pool = function(self)
-        return false -- never naturally drawn from a pool; only ever handed out via the Spectral/Arcana pack hook
+        return true
     end,
 
     loc_txt = {
@@ -3709,7 +3703,7 @@ SMODS.Consumable{
     discovered = true,
 
     in_pool = function(self)
-        return false -- never naturally drawn from a pool; only ever handed out via the Spectral/Arcana pack hook
+        return true
     end,
 
     loc_txt = {
@@ -3755,7 +3749,7 @@ SMODS.Consumable{
     discovered = true,
 
     in_pool = function(self)
-        return false -- never naturally drawn from a pool; only ever handed out via the Spectral/Arcana pack hook
+        return true
     end,
 
     loc_txt = {
@@ -3811,7 +3805,7 @@ SMODS.Consumable{
     discovered = true,
 
     in_pool = function(self)
-        return false -- never naturally drawn from a pool; only ever handed out via the Spectral/Arcana pack hook
+        return true
     end,
 
     loc_txt = {
@@ -3855,7 +3849,7 @@ SMODS.Consumable{
     discovered = true,
 
     in_pool = function(self)
-        return false -- never naturally drawn from a pool; only ever handed out via the Spectral/Arcana pack hook
+        return true
     end,
 
     loc_txt = {
@@ -3897,7 +3891,7 @@ SMODS.Consumable{
     discovered = true,
 
     in_pool = function(self)
-        return false -- never naturally drawn from a pool; only ever handed out via the Spectral/Arcana pack hook
+        return true
     end,
 
     loc_txt = {
@@ -3949,7 +3943,7 @@ SMODS.Consumable{
     discovered = true,
 
     in_pool = function(self)
-        return false -- never naturally drawn from a pool; only ever handed out via the Spectral/Arcana pack hook
+        return true
     end,
 
     loc_txt = {
@@ -3994,7 +3988,7 @@ SMODS.Consumable{
     discovered = true,
 
     in_pool = function(self)
-        return false -- never naturally drawn from a pool; only ever handed out via the Spectral/Arcana pack hook
+        return true
     end,
 
     loc_txt = {
@@ -4040,7 +4034,7 @@ SMODS.Consumable{
     discovered = true,
 
     in_pool = function(self)
-        return false -- never naturally drawn from a pool; only ever handed out via the Spectral/Arcana pack hook
+        return true
     end,
 
     loc_txt = {
@@ -4239,7 +4233,7 @@ SMODS.Consumable{
     discovered = true,
 
     in_pool = function(self)
-        return false -- never naturally drawn from a pool; only ever handed out via the Spectral/Arcana pack hook
+        return true
     end,
 
     loc_txt = {
@@ -4298,7 +4292,7 @@ SMODS.Consumable{
     discovered = true,
 
     in_pool = function(self)
-        return false -- never naturally drawn from a pool; only ever handed out via the Spectral/Arcana pack hook
+        return true
     end,
 
     loc_txt = {
@@ -4374,7 +4368,7 @@ SMODS.Consumable{
     discovered = true,
 
     in_pool = function(self)
-        return false -- never naturally drawn from a pool; only ever handed out via the Spectral/Arcana pack hook
+        return true
     end,
 
     loc_txt = {
@@ -4419,7 +4413,7 @@ SMODS.Consumable{
     discovered = true,
 
     in_pool = function(self)
-        return false -- never naturally drawn from a pool; only ever handed out via the Spectral/Arcana pack hook
+        return true
     end,
 
     loc_txt = {
@@ -4492,7 +4486,7 @@ SMODS.Consumable{
     discovered = true,
 
     in_pool = function(self)
-        return false -- never naturally drawn from a pool; only ever handed out via the Spectral/Arcana pack hook
+        return true
     end,
 
     loc_txt = {
@@ -4561,7 +4555,7 @@ SMODS.Consumable{
     discovered = true,
 
     in_pool = function(self)
-        return false -- never naturally drawn from a pool; only ever handed out via the Spectral/Arcana pack hook
+        return true
     end,
 
     loc_txt = {
@@ -4611,7 +4605,7 @@ SMODS.Consumable{
     discovered = true,
 
     in_pool = function(self)
-        return false -- never naturally drawn from a pool; only ever handed out via the Spectral/Arcana pack hook
+        return true
     end,
 
     loc_txt = {
@@ -4657,7 +4651,7 @@ SMODS.Consumable{
     discovered = true,
 
     in_pool = function(self)
-        return false -- never naturally drawn from a pool; only ever handed out via the Spectral/Arcana pack hook
+        return true
     end,
 
     loc_txt = {
@@ -4705,7 +4699,7 @@ SMODS.Consumable{
     discovered = true,
 
     in_pool = function(self)
-        return false -- never naturally drawn from a pool; only ever handed out via the Spectral/Arcana pack hook
+        return true
     end,
 
     loc_txt = {
@@ -4762,7 +4756,7 @@ SMODS.Consumable{
     discovered = true,
 
     in_pool = function(self)
-        return false -- never naturally drawn from a pool; only ever handed out via the Spectral/Arcana pack hook
+        return true
     end,
 
     loc_txt = {
@@ -4815,7 +4809,7 @@ SMODS.Consumable{
     discovered = true,
 
     in_pool = function(self)
-        return false -- never naturally drawn from a pool; only ever handed out via the Spectral/Arcana pack hook
+        return true
     end,
 
     loc_txt = {
@@ -4841,7 +4835,7 @@ SMODS.Consumable{
         G.GAME.hex_altair_mult = ((G.GAME and G.GAME.hex_altair_mult) or 1) * 2
 
         card_eval_status_text(card, "extra", nil, nil, nil, {
-            message = "X1.1 Negative",
+            message = "X2 Negative",
             colour = G.C.STAR
         })
     end,
@@ -4864,7 +4858,7 @@ SMODS.Consumable{
     discovered = true,
 
     in_pool = function(self)
-        return false -- never naturally drawn from a pool; only ever handed out via the Spectral/Arcana pack hook
+        return true
     end,
 
     loc_txt = {
@@ -4910,7 +4904,7 @@ SMODS.Consumable{
     discovered = true,
 
     in_pool = function(self)
-        return false -- never naturally drawn from a pool; only ever handed out via the Spectral/Arcana pack hook
+        return not (G.GAME and G.GAME.hex_toi_125_used) 
     end,
 
     loc_txt = {
@@ -4952,7 +4946,7 @@ SMODS.Consumable{
     discovered = true,
 
     in_pool = function(self)
-        return false -- never naturally drawn from a pool; only ever handed out via the Spectral/Arcana pack hook
+        return (G.GAME and G.GAME.hex_vy_unlocked and not G.GAME.hex_vy_used) or false
     end,
 
     loc_txt = {
@@ -5011,9 +5005,10 @@ SMODS.Consumable{
     unlocked = true,
     discovered = true,
 
-    in_pool = function(self)
-        return false -- never naturally drawn from a pool; only ever handed out via the Spectral/Arcana/Star-pack hook
+    in_pool = function(self)    
+        return true
     end,
+
 
     loc_txt = {
         name = "The Milky Way",
@@ -5089,8 +5084,9 @@ SMODS.Consumable{
     discovered = true,
 
     in_pool = function(self)
-        return false -- never naturally drawn from a pool; only ever handed out via the Spectral/Arcana/Star-pack hook
+        return true
     end,
+
 
     loc_txt = {
         name = "Andromeda",
@@ -5189,8 +5185,9 @@ SMODS.Consumable{
     discovered = true,
 
     in_pool = function(self)
-        return false -- never naturally drawn from a pool; only ever handed out via the Spectral/Arcana/Star-pack hook
+        return true
     end,
+
 
     loc_txt = {
         name = "Triangulum Galaxy",
@@ -5240,8 +5237,9 @@ SMODS.Consumable{
     discovered = true,
 
     in_pool = function(self)
-        return false -- never naturally drawn from a pool; only ever handed out via the Spectral/Arcana/Star-pack hook
+        return true
     end,
+
 
     loc_txt = {
         name = "Sombrero Galaxy",
@@ -5324,7 +5322,7 @@ SMODS.Consumable{
     discovered = true,
 
     in_pool = function(self)
-        return false -- never naturally drawn from a pool; only ever handed out via the Spectral/Arcana/Star-pack hook
+        return true
     end,
 
     loc_txt = {
@@ -5403,8 +5401,9 @@ SMODS.Consumable{
     discovered = true,
 
     in_pool = function(self)
-        return false -- never naturally drawn from a pool; only ever handed out via the Spectral/Arcana/Star-pack hook
+        return true
     end,
+
 
     loc_txt = {
         name = "Antennae Galaxies",
@@ -5477,8 +5476,9 @@ SMODS.Consumable{
     discovered = true,
 
     in_pool = function(self)
-        return false -- never naturally drawn from a pool; only ever handed out via the Spectral/Arcana/Star-pack hook
+        return true
     end,
+
 
     loc_txt = {
         name = "Hoag's Object",
@@ -5527,8 +5527,9 @@ SMODS.Consumable{
     discovered = true,
 
     in_pool = function(self)
-        return false -- never naturally drawn from a pool; only ever handed out via the Spectral/Arcana/Star-pack hook
+        return true
     end,
+
 
     loc_txt = {
         name = "Pinwheel Galaxy",
@@ -5552,7 +5553,6 @@ SMODS.Consumable{
         })
     end,
 }
-
 
 
 
