@@ -243,8 +243,8 @@ SMODS.Atlas{
 }
 
 SMODS.Atlas{
-    key = "HexCelestialsCosmics",
-    path = "Celestials_and_Cosmics.png",
+    key = "HexAstralsCosmics",
+    path = "Astrals_and_Cosmics.png",
     px = 71,
     py = 95,
 }
@@ -481,6 +481,374 @@ SMODS.PokerHand{
     end,
 }
 
+-- ============================================================
+-- Custom Poker Hands: Dual Three of a Kind / Flush Dual Three of a
+-- Kind / Grand House / Flush Grand House
+--
+-- Same generalized-groups approach as Three/Four Pair above, just
+-- built on parts._3 (groups of at least 3 cards sharing a rank) and
+-- parts._4 (groups of at least 4 cards sharing a rank) instead of
+-- parts._2.
+-- ============================================================
+
+-- Merges every parts._3 group into one flat list, the same way
+-- hex_merge_all_pair_groups does for parts._2 above.
+local function hex_merge_all_trip_groups(parts)
+    return SMODS.merge_lists(parts._3)
+end
+
+SMODS.PokerHand{
+    key = "dual_three_of_a_kind",
+    visible = false,
+    mult = 20,
+    chips = 400,
+    l_mult = 8,
+    l_chips = 80,
+
+    loc_txt = {
+        name = "Dual Three of a Kind",
+        description = {
+            "2 Three of a Kinds",
+            "of different ranks",
+        }
+    },
+
+    example = {
+        { 'S_9', true },
+        { 'H_9', true },
+        { 'C_9', true },
+        { 'S_5', true },
+        { 'H_5', true },
+        { 'C_5', true },
+    },
+
+    evaluate = function(parts, hand)
+        if #parts._3 >= 2 then
+            return { hex_merge_all_trip_groups(parts) }
+        end
+        return {}
+    end,
+}
+
+SMODS.PokerHand{
+    key = "flush_dual_three_of_a_kind",
+    visible = false,
+    mult = 30,
+    chips = 700,
+    l_mult = 12,
+    l_chips = 140,
+
+    loc_txt = {
+        name = "Flush Dual Three of a Kind",
+        description = {
+            "2 Three of a Kinds of",
+            "different ranks, all one suit",
+        }
+    },
+
+    example = {
+        { 'S_9', true },
+        { 'S_9', true },
+        { 'S_9', true },
+        { 'S_5', true },
+        { 'S_5', true },
+        { 'S_5', true },
+    },
+
+    evaluate = function(parts, hand)
+        if #parts._3 >= 2 then
+            local cards = hex_merge_all_trip_groups(parts)
+            if hex_cards_all_same_suit(cards) then
+                return { cards }
+            end
+        end
+        return {}
+    end,
+}
+
+-- Grand House: a Four of a Kind plus a separate Three of a Kind (of a
+-- different rank). Note that a four-of-a-kind group also naturally
+-- satisfies parts._3's own "at least 3 cards sharing a rank" test, so
+-- `#parts._3 >= 2` alone isn't enough to confirm a *separate* trip
+-- exists -- we explicitly find a parts._3 group whose rank differs from
+-- every parts._4 group's rank before accepting the hand.
+SMODS.PokerHand{
+    key = "grand_house",
+    visible = false,
+    mult = 60,
+    chips = 1000,
+    l_mult = 25,
+    l_chips = 250,
+
+    loc_txt = {
+        name = "Grand House",
+        description = {
+            "A Four of a Kind and",
+            "a Three of a Kind",
+        }
+    },
+
+    example = {
+        { 'S_9', true },
+        { 'H_9', true },
+        { 'C_9', true },
+        { 'D_9', true },
+        { 'S_5', true },
+        { 'H_5', true },
+        { 'C_5', true },
+    },
+
+    evaluate = function(parts, hand)
+        if #parts._4 >= 1 and #parts._3 >= 2 then
+            local four_cards = SMODS.merge_lists(parts._4)
+
+            local four_ranks = {}
+            for _, group in ipairs(parts._4) do
+                local rank = group[1] and group[1].base and group[1].base.value
+                if rank then four_ranks[rank] = true end
+            end
+
+            local extra_group = nil
+            for _, group in ipairs(parts._3) do
+                local rank = group[1] and group[1].base and group[1].base.value
+                if rank and not four_ranks[rank] then
+                    extra_group = group
+                    break
+                end
+            end
+
+            if extra_group then
+                local cards = {}
+                for _, c in ipairs(four_cards) do cards[#cards + 1] = c end
+                for _, c in ipairs(extra_group) do cards[#cards + 1] = c end
+                return { cards }
+            end
+        end
+        return {}
+    end,
+}
+
+SMODS.PokerHand{
+    key = "flush_grand_house",
+    visible = false,
+    mult = 120,
+    chips = 4000,
+    l_mult = 50,
+    l_chips = 1000,
+
+    loc_txt = {
+        name = "Flush Grand House",
+        description = {
+            "A Four of a Kind and a",
+            "Three of a Kind, all one suit",
+        }
+    },
+
+    example = {
+        { 'S_9', true },
+        { 'S_9', true },
+        { 'S_9', true },
+        { 'S_9', true },
+        { 'S_5', true },
+        { 'S_5', true },
+        { 'S_5', true },
+    },
+
+    evaluate = function(parts, hand)
+        if #parts._4 >= 1 and #parts._3 >= 2 then
+            local four_cards = SMODS.merge_lists(parts._4)
+
+            local four_ranks = {}
+            for _, group in ipairs(parts._4) do
+                local rank = group[1] and group[1].base and group[1].base.value
+                if rank then four_ranks[rank] = true end
+            end
+
+            local extra_group = nil
+            for _, group in ipairs(parts._3) do
+                local rank = group[1] and group[1].base and group[1].base.value
+                if rank and not four_ranks[rank] then
+                    extra_group = group
+                    break
+                end
+            end
+
+            if extra_group then
+                local cards = {}
+                for _, c in ipairs(four_cards) do cards[#cards + 1] = c end
+                for _, c in ipairs(extra_group) do cards[#cards + 1] = c end
+
+                if hex_cards_all_same_suit(cards) then
+                    return { cards }
+                end
+            end
+        end
+        return {}
+    end,
+}
+
+
+
+
+-- ============================================================
+-- Custom Poker Hands: N of a Kind / Flush N of a Kind
+--
+-- evaluate() ONLY identifies cards here -- exactly like every other
+-- hand in this file -- and never mutates G.GAME.hands. That's the
+-- critical fix: evaluate() runs continuously while cards are merely
+-- highlighted (that's what builds the live score preview in
+-- cardarea.lua's parse_highlighted), not just when a hand is actually
+-- played. Mutating shared hand state from inside evaluate() corrupted
+-- the UI's already-bound preview objects mid-frame, which is what was
+-- crashing parse_highlighted -- it had nothing to do with big()/plain
+-- number typing.
+--
+-- The dynamic "starts at n*X chips / n*Y mult" scaling is instead
+-- applied exactly once, only at real play-time, via the
+-- G.HEX_REAL_SCORING flag set below -- armed only inside a wrap of
+-- G.FUNCS.evaluate_play (vanilla's actual "Play Hand" button handler),
+-- which highlighting never touches. This mirrors how every other
+-- dynamic effect in this file (Editions, Green Screen, Bonus Joker)
+-- only ever mutates scoring state from inside a context hook that's
+-- exclusively fired by real scoring, never by preview.
+-- ============================================================
+
+G.HEX_REAL_SCORING = false
+
+local function hex_biggest_rank_group(hand)
+    local groups = {}
+
+    for _, c in ipairs(hand) do
+        local rank = c.base and c.base.value
+        if rank then
+            groups[rank] = groups[rank] or {}
+            groups[rank][#groups[rank] + 1] = c
+        end
+    end
+
+    local best = nil
+    for _, cards in pairs(groups) do
+        if not best or #cards > #best then
+            best = cards
+        end
+    end
+
+    return best
+end
+
+-- Only ever called while G.HEX_REAL_SCORING is true (see the
+-- evaluate_play wrap below). Plain Lua arithmetic, matching every other
+-- hand's static chips/mult fields -- G.GAME.hands[key].chips/.mult are
+-- vanilla fields read by vanilla, Amulet-unaware UI code, so this stays
+-- deliberately unwrapped by big().
+local function hex_apply_dynamic_n_hand(key, n, chips_per_n, mult_per_n)
+    local hand_info = G.GAME.hands[key]
+    if not hand_info then return end
+
+    local level = hand_info.level or 1
+    local extra_levels = math.max(0, level - 1)
+
+    hand_info.chips = n * chips_per_n + extra_levels * (hand_info.l_chips or 0)
+    hand_info.mult = n * mult_per_n + extra_levels * (hand_info.l_mult or 0)
+end
+
+SMODS.PokerHand{
+    key = "n_of_a_kind",
+    visible = false,
+    mult = 18,
+    chips = 180,
+    l_mult = 2,
+    l_chips = 20,
+
+    loc_txt = {
+        name = "N of a Kind",
+        description = {
+            "6 or more cards of",
+            "the same rank",
+        }
+    },
+
+    example = {
+        { 'S_9', true },
+        { 'H_9', true },
+        { 'C_9', true },
+        { 'D_9', true },
+        { 'S_9', true },
+        { 'H_9', true },
+    },
+
+    evaluate = function(parts, hand)
+        local group = hex_biggest_rank_group(hand)
+
+        if group and #group >= 6 then
+            if G.HEX_REAL_SCORING then
+                hex_apply_dynamic_n_hand("n_of_a_kind", #group, 30, 3)
+            end
+            return { group }
+        end
+
+        return {}
+    end,
+}
+
+SMODS.PokerHand{
+    key = "flush_n_of_a_kind",
+    visible = false,
+    mult = 30,
+    chips = 240,
+    l_mult = 3,
+    l_chips = 25,
+
+    loc_txt = {
+        name = "Flush N of a Kind",
+        description = {
+            "6 or more cards of the",
+            "same rank, all one suit",
+        }
+    },
+
+    example = {
+        { 'S_9', true },
+        { 'S_9', true },
+        { 'S_9', true },
+        { 'S_9', true },
+        { 'S_9', true },
+        { 'S_9', true },
+    },
+
+    evaluate = function(parts, hand)
+        local group = hex_biggest_rank_group(hand)
+
+        if group and #group >= 6 and hex_cards_all_same_suit(group) then
+            if G.HEX_REAL_SCORING then
+                hex_apply_dynamic_n_hand("flush_n_of_a_kind", #group, 40, 5)
+            end
+            return { group }
+        end
+
+        return {}
+    end,
+}
+
+-- Arms G.HEX_REAL_SCORING for the duration of vanilla's actual "Play
+-- Hand" evaluation -- the one and only call path that should ever be
+-- allowed to mutate hand_info.chips/mult above. Disarmed immediately
+-- after, whether or not the play actually went through (pcall-wrapped
+-- so a disarm always happens even if something inside errors).
+local hex_old_evaluate_play = G.FUNCS.evaluate_play
+
+G.FUNCS.evaluate_play = function(e)
+    G.HEX_REAL_SCORING = true
+
+    local ok, err = pcall(hex_old_evaluate_play, e)
+
+    G.HEX_REAL_SCORING = false
+
+    if not ok then
+        print("[hex] evaluate_play error: " .. tostring(err))
+    end
+end
+
 
 
 
@@ -563,7 +931,8 @@ SMODS.Edition{
     -- Raises the running Mult to the power of 1.25 whenever the card
     -- carrying this edition (Joker or playing card) scores.
     calculate = function(self, card, context)
-        if hex_edition_context_ok(context) then
+        if (context.edition and context.cardarea == G.jokers and card.config.trigger)
+        or (context.main_scoring and context.cardarea == G.play) then
             return {
                 func = function()
                     if mult == nil then return end
@@ -574,8 +943,15 @@ SMODS.Edition{
                 colour = G.C.PURPLE
             }
         end
-    end,
 
+        if context.joker_main then
+            card.config.trigger = true
+        end
+
+        if context.after then
+            card.config.trigger = nil
+        end
+    end,
 }
 
 SMODS.Edition{
@@ -603,7 +979,7 @@ SMODS.Edition{
     -- Doubles the running Chips whenever the card carrying this edition
     -- (Joker or playing card) scores.
     calculate = function(self, card, context)
-        if (context.edition and context.cardarea == G.jokers and not card.config.trigger)
+        if (context.edition and context.cardarea == G.jokers and card.config.trigger)
         or (context.main_scoring and context.cardarea == G.play) then
             return {
                 x_chips = 2,
@@ -667,7 +1043,6 @@ SMODS.Edition{
     end,
 }
 
-G.C.HEX_RADIANT = HEX("FFD700") -- gold, used for Radiant text
 
 SMODS.Edition{
     key = "radiant",
@@ -677,7 +1052,7 @@ SMODS.Edition{
         label = "Radiant",
 
         text = {
-            "{C:purple}^^1.5{} Chips and Mult"
+            "{C:purple}^^1.25{} Chips and Mult"
         }
     },
 
@@ -698,10 +1073,8 @@ SMODS.Edition{
         if (context.edition and context.cardarea == G.jokers and card.config.trigger)
         or (context.main_scoring and context.cardarea == G.play) then
             return {
-                ee_chips = 1.5,
-                ee_mult = 1.5,
-                message = "^^1.5",
-                colour = G.C.HEX_RADIANT
+                ee_chips = 1.25,
+                ee_mult = 1.25,
             }
         end
 
@@ -1740,6 +2113,8 @@ local HEX_RITUAL_SHORT_KEYS = {
     "fractal",
     "eclipse",
     "manifest",
+    "ascension",
+    "big_bang",
 }
 
 local old_start_run_ritualistic_deck = Game.start_run
@@ -2643,9 +3018,7 @@ SMODS.Joker{
     loc_txt = {
         name = "Royal Family",
         text = {
-            "Face cards count as",
-            "{C:attention}Jacks, Queens, and Kings{}",
-            "at the same time"
+            "All cards count as kings",
         }
     },
 
@@ -2754,7 +3127,7 @@ SMODS.Joker{
     in_pool = function(self)
         return false
     end,
-    cost = 50,
+    cost = 200,
     unlocked = true,
     discovered = true,
     blueprint_compat = true,
@@ -2839,30 +3212,35 @@ SMODS.Joker{
         return false
     end,
 
-    cost = 40,
+    cost = 200,
     unlocked = true,
     discovered = true,
     blueprint_compat = false,
     eternal_compat = true,
-
+    
     config = {
         extra = {
-            last_ante = {}
+            last_round = nil
         }
     },
 
-    add_to_deck = function(self, card, from_debuff)
-        card.ability.extra.last_ante = G.GAME.round_resets.ante - 1
-    end,
-
     calculate = function(self, card, context)
+        -- NOTE: this used to dedupe against G.GAME.round_resets.ante, but
+        -- that field doesn't actually increment at the moment end_of_round
+        -- fires right after beating a Boss Blind -- it only updates later,
+        -- once the next blind is set up -- so the ante-based check only
+        -- ever passed once and never again after that. Deduping against
+        -- G.GAME.round instead (the same per-card-stamp trick Black Seal
+        -- uses elsewhere in this file for its own end_of_round quirk)
+        -- tracks "have we already given a slot for this round's boss
+        -- fight" directly, which is the thing we actually care about.
         if context.end_of_round
         and G.GAME.blind
         and G.GAME.blind.boss
         and not context.blueprint
-        and G.GAME.round_resets.ante > card.ability.extra.last_ante then
+        and card.ability.extra.last_round ~= G.GAME.round then
 
-            card.ability.extra.last_ante = G.GAME.round_resets.ante
+            card.ability.extra.last_round = G.GAME.round
 
             G.E_MANAGER:add_event(Event({
                 func = function()
@@ -2907,7 +3285,7 @@ SMODS.Joker{
         return false -- hidden/unlock-only rarity, like the other Mythic+ jokers
     end,
 
-    cost = 100,
+    cost = 200,
     unlocked = true,
     discovered = true,
     blueprint_compat = false,
@@ -2933,7 +3311,7 @@ SMODS.Joker{
         return false
     end,
 
-    cost = 75,
+    cost = 200,
     unlocked = true,
     discovered = true,
     blueprint_compat = false,
@@ -3018,7 +3396,7 @@ SMODS.Joker{
     atlas = "HexJokers",
     pos = { x = 5, y = 0 }, -- placeholder art slot, same as other undrawn Mythic+ jokers
 
-    cost = 100,
+    cost = 200,
     unlocked = true,
     discovered = true,
     blueprint_compat = false,
@@ -3054,7 +3432,7 @@ SMODS.Joker{
         return false -- hidden/unlock-only rarity, like Aria/Overflow/Exponent Joker
     end,
 
-    cost = 2500,
+    cost = 100000,
     unlocked = true,
     discovered = true,
     blueprint_compat = true,
@@ -3116,7 +3494,7 @@ SMODS.Joker{
     atlas = "HexJokers",
     pos = { x = 5, y = 0 }, -- placeholder art slot shared with the other undrawn Divine/Transcendental jokers
 
-    cost = 75000,
+    cost = 1e100,
     unlocked = true,
     discovered = true,
     blueprint_compat = false,
@@ -3148,7 +3526,7 @@ SMODS.Joker{
     atlas = "HexJokers",
     pos = { x = 5, y = 0 }, -- placeholder art slot shared with the other undrawn Divine/Transcendental jokers
 
-    cost = 50000,
+    cost = 1e100,
     unlocked = true,
     discovered = true,
     blueprint_compat = false,
@@ -3173,7 +3551,7 @@ SMODS.Joker{
     atlas = "HexJokers",
     pos = { x = 5, y = 0 }, -- placeholder art slot shared with the other undrawn Divine/Transcendental jokers
 
-    cost = 50000,
+    cost = 1e100,
     unlocked = true,
     discovered = true,
     blueprint_compat = false,
@@ -3200,7 +3578,7 @@ SMODS.Joker{
     atlas = "HexJokers",
     pos = { x = 5, y = 0 }, -- placeholder art slot shared with the other undrawn Divine/Transcendental jokers
 
-    cost = 100000,
+    cost = 1e308,
     unlocked = true,
     discovered = true,
     blueprint_compat = false,
@@ -3477,6 +3855,9 @@ SMODS.Booster{
         }
     end,
 }
+
+
+
 
 -- Sol: rather than just knocking down the currently active blind's chip
 -- requirement (a one-off, single-blind effect), Sol permanently shrinks
@@ -4200,6 +4581,63 @@ function add_round_eval_row(config)
         local rigil_bonus = G.GAME.hex_rigil_bonus or 0
         local toliman_bonus = is_boss_blind and (G.GAME.hex_toliman_bonus or 0) or 0
         local bonus = rigil_bonus + toliman_bonus
+
+        -- Big Bang: independent of the money-bonus dedupe just below
+        -- (hex_cash_out_paid_round), so it still fires every round even
+        -- if neither Rigil Kentaurus nor Toliman is owned. The number of
+        -- cards created is however many the persistent hex_big_bang_count
+        -- counter has stacked up to (see its own definition -- +3 per
+        -- use, uncapped). Each card independently rolls Star vs. Galaxy,
+        -- then is always forced Negative -- same as Sombrero Galaxy/
+        -- Rigel's own grants -- but deliberately NOT gated on there being
+        -- room in G.consumeables, unlike those two: every card here is
+        -- always created regardless of how full the consumable area
+        -- already is.
+        local big_bang_count = G.GAME.hex_big_bang_count or 0
+
+        if big_bang_count > 0
+        and G.GAME.hex_big_bang_paid_round ~= G.GAME.round then
+
+            G.GAME.hex_big_bang_paid_round = G.GAME.round
+
+            for i = 1, big_bang_count do
+                G.E_MANAGER:add_event(Event({
+                    trigger = "after",
+                    delay = 0.2 * i,
+                    func = function()
+                        if G.consumeables then
+                            local chosen_key = nil
+
+                            if pseudorandom(pseudoseed(mod.prefix .. "_big_bang_galaxy_" .. i .. "_" .. G.GAME.round)) < 0.1 then
+                                local galaxies = hex_get_galaxy_centers()
+                                if #galaxies > 0 then
+                                    chosen_key = galaxies[math.random(#galaxies)].key
+                                end
+                            end
+
+                            if not chosen_key then
+                                local stars = hex_get_star_centers()
+                                if #stars > 0 then
+                                    chosen_key = stars[math.random(#stars)].key
+                                end
+                            end
+
+                            if chosen_key then
+                                local new_card = SMODS.create_card({
+                                    key = chosen_key,
+                                    area = G.consumeables
+                                })
+
+                                new_card:set_edition({ negative = true }, true)
+
+                                G.consumeables:emplace(new_card)
+                            end
+                        end
+                        return true
+                    end
+                }))
+            end
+        end
 
         if bonus > 0 then
             G.GAME.hex_cash_out_paid_round = G.GAME.round
@@ -6252,6 +6690,187 @@ SMODS.Consumable{
 }
 
 
+-- Ascension: a straightforward, immediate stat-boost ritual -- no menu,
+-- same "apply everything right away" style as Eclipse/Fractal above.
+-- Each stat bump reuses the exact same fields/patterns already
+-- established elsewhere in this file for that stat, rather than
+-- inventing new mechanisms:
+--   * Joker/Consumable slots: direct card_limit bumps, same as
+--     Overflow/Endless Abyss/Arcturus/VY Canis Majoris.
+--   * Hands/Discards every round: round_resets + current_round bump,
+--     same pattern Pollux/Castor/Gambler's Deck use.
+--   * Hand size: round_resets.hand_size + live G.hand.config.card_limit
+--     bump, then draws the newly-opened slots from the deck immediately,
+--     same pattern Sirius/Gambler's Deck use.
+--   * Playing card selection limit: adds directly onto
+--     hex_pinwheel_bonus_limit, the exact same persistent counter
+--     Pinwheel Galaxy bumps -- it's already read every frame in the
+--     Game:update poll (alongside Polydactyly/Reach/Long Reach), so
+--     Ascension's bonus stacks and behaves identically to more copies
+--     of Pinwheel Galaxy without needing any new poll logic.
+--   * Money: a straight X50 multiply on G.GAME.dollars.
+SMODS.Consumable{
+    key = "ascension",
+    set = "ritual",
+
+    atlas = "HexRitualsQuantums",
+    pos = { x = 5, y = 0 }, -- next open frame in the atlas, after Fractal (4,0)
+
+    unlocked = true,
+    discovered = true,
+
+    in_pool = function(self)
+        return false             -- never naturally generated; must be granted directly
+    end,
+
+    loc_txt = {
+        name = "Ascension",
+        text = {
+            "Permanently gain {C:attention}+5{} Joker slots,",
+            "{C:attention}+5{} consumable slots,",
+            "{C:attention}+5{} hands{} and {C:attention}+5{} discards{}",
+            "every round, {C:attention}+5{} hand size{},",
+            "{C:attention}+3{} card selection limit{},",
+            "and {C:money}X50{} money",
+        }
+    },
+
+    can_use = function(self, card)
+        return true
+    end,
+
+    use = function(self, card)
+        -- Joker slots
+        if G.jokers and G.jokers.config then
+            G.jokers.config.card_limit = G.jokers.config.card_limit + 5
+        end
+
+        -- Consumable slots
+        if G.consumeables and G.consumeables.config then
+            G.consumeables.config.card_limit = G.consumeables.config.card_limit + 5
+        end
+
+        -- Hands / Discards every round
+        G.GAME.round_resets.hands = (G.GAME.round_resets.hands or 4) + 5
+        G.GAME.round_resets.discards = (G.GAME.round_resets.discards or 3) + 5
+
+        if G.GAME.current_round then
+            G.GAME.current_round.hands_left = (G.GAME.current_round.hands_left or 0) + 5
+            G.GAME.current_round.discards_left = (G.GAME.current_round.discards_left or 0) + 5
+        end
+
+        -- Hand size: bump the baseline + live limit, then top the
+        -- current hand up with the newly-opened slots right away.
+        G.GAME.round_resets.hand_size = (G.GAME.round_resets.hand_size or 8) + 5
+
+        if G.hand and G.hand.config then
+            G.hand.config.card_limit = G.hand.config.card_limit + 5
+
+            if G.deck and #G.deck.cards > 0 then
+                local to_draw = {}
+                for i = 1, math.min(5, #G.deck.cards) do
+                    to_draw[#to_draw + 1] = G.deck.cards[i]
+                end
+                if #to_draw > 0 then
+                    G.hand:draw(to_draw)
+                end
+            end
+        end
+
+        -- Playing card selection limit -- stacks onto the same
+        -- persistent counter Pinwheel Galaxy uses.
+        G.GAME.hex_pinwheel_bonus_limit = (G.GAME.hex_pinwheel_bonus_limit or 0) + 3
+
+        -- Money
+        G.GAME.dollars = math.floor((G.GAME.dollars or 0) * 50)
+
+        G.GAME.hex_rituals_used = G.GAME.hex_rituals_used or {}
+        G.GAME.hex_rituals_used["ascension"] = true
+
+        card_eval_status_text(card, "extra", nil, nil, nil, {
+            message = "Ascension!",
+            colour = G.C.RITUAL
+        })
+    end,
+}
+
+
+-- Big Bang: a permanent, ongoing ritual (unlike Ascension's one-time
+-- stat boost) -- once used, it keeps firing at the end of every future
+-- round for the rest of the run. The actual card creation is hooked
+-- into the same add_round_eval_row wrap Toliman/Rigil Kentaurus's own
+-- end-of-round cash bonuses use further down the file (see that hook's
+-- own comment for why 'bottom' is the right one-shot-per-round trigger
+-- point) -- it's the same "end of round" moment, just producing cards
+-- instead of money. Uses its own G.GAME.hex_big_bang_paid_round dedupe
+-- flag, independent of hex_cash_out_paid_round, so it fires every round
+-- regardless of whether Toliman/Rigil Kentaurus are also owned.
+--
+-- Every additional use (via Oracle, or however many copies you get your
+-- hands on) stacks +3 more onto a persistent per-run counter
+-- (hex_big_bang_count), the same "persistent counter that keeps growing
+-- every time this exact card is used again" approach Altair/Canopus/
+-- Toliman/Rigil Kentaurus all use above for their own stacking bonuses --
+-- so 2 uses grants 6 cards a round, 3 uses grants 9, and so on, uncapped.
+--
+-- Each card independently rolls a 1-in-10 chance to be a Galaxy card
+-- instead of a Star card (same HEX_GALAXY_IN_STARPACK_CHANCE-style odds
+-- already used for Star Pack's own Galaxy chance elsewhere in the file),
+-- then is always set Negative -- same create-then-force-Negative pattern
+-- Sombrero Galaxy/Rigel use above. Unlike those, creation here is
+-- deliberately NOT gated on room in G.consumeables -- every card is
+-- always created regardless of how full the consumable area already is,
+-- the same unconditional treatment Negative Jokers get elsewhere in
+-- this file for the Joker slot limit.
+SMODS.Consumable{
+    key = "big_bang",
+    set = "ritual",
+
+    atlas = "HexRitualsQuantums",
+    pos = { x = 6, y = 0 }, -- next open frame in the atlas, after Ascension (5,0)
+
+    unlocked = true,
+    discovered = true,
+
+    in_pool = function(self)
+        return false             -- never naturally generated; must be granted directly
+    end,
+
+    loc_txt = {
+        name = "Big Bang",
+        text = {
+            "Permanently gain {C:attention}+3{}",
+            "{C:dark_red}Negative{} {C:star}Star{} cards",
+            "at the {C:attention}end of every round{}",
+            "{C:inactive}(#1# in 10 chance each of being{}",
+            "{C:inactive}a {C:galaxy}Galaxy{} card instead){}",
+            "{C:inactive}(Currently +#2# per round, stacks){}",
+        }
+    },
+
+    loc_vars = function(self, info_queue, card)
+        return { vars = { 1, (G.GAME and G.GAME.hex_big_bang_count) or 0 } }
+    end,
+
+    can_use = function(self, card)
+        return true
+    end,
+
+    use = function(self, card)
+        G.GAME.hex_big_bang_used = true
+        G.GAME.hex_big_bang_count = (G.GAME.hex_big_bang_count or 0) + 3
+
+        G.GAME.hex_rituals_used = G.GAME.hex_rituals_used or {}
+        G.GAME.hex_rituals_used["big_bang"] = true
+
+        card_eval_status_text(card, "extra", nil, nil, nil, {
+            message = "Big Bang!",
+            colour = G.C.RITUAL
+        })
+    end,
+}
+
+
 -- ============================================================
 -- Ritual: Manifest
 -- Lets the player build one fully custom playing card and add it to
@@ -6369,13 +6988,18 @@ local function hex_manifest_get_editions()
     local out = { HEX_MANIFEST_NONE }
     local list = {}
 
+    -- Empowered can't be picked via Manifest -- it's the strongest custom
+    -- edition (pentation), and pentating a single playing card's Chips/
+    -- Mult on demand like this would be too strong to hand out freely.
+    local empowered_key = "e_" .. mod.prefix .. "_empowered"
+
     for _, center in pairs(G.P_CENTERS) do
         -- "e_base" is vanilla's internal placeholder representing "no
         -- edition" (used for shop RNG weighting) -- it isn't a real
         -- edition to apply to a card, and we already offer our own
         -- HEX_MANIFEST_NONE option for that, so skip it here or it shows
         -- up as a second blank/no-edition entry.
-        if center.set == "Edition" and center.key ~= "e_base" then
+        if center.set == "Edition" and center.key ~= "e_base" and center.key ~= empowered_key then
             list[#list + 1] = (center.key:gsub("^e_", ""))
         end
     end
@@ -6992,13 +7616,24 @@ end
 -- together no matter which menu was actually open).
 local hex_star_pick_old_exit_overlay_menu = G.FUNCS.exit_overlay_menu
 G.FUNCS.exit_overlay_menu = function(e)
-    -- Pay back the pack-choice we borrowed in Card:use_consumeable,
-    -- whether the picker closed via a real pick, Cancel, or Back --
-    -- this fires on every path since they all route through
-    -- exit_overlay_menu eventually.
     if G.HEX_STAR_PICK_PACK_HELD and G.GAME and G.GAME.pack_choices then
         G.GAME.pack_choices = math.max(0, G.GAME.pack_choices - 1)
         G.HEX_STAR_PICK_PACK_HELD = false
+
+        -- Vanilla's "close the pack" check only ever runs once, synchronously,
+        -- at the moment a card is used -- which we deliberately dodged above
+        -- so the pack would stay open behind our picker. Now that the picker
+        -- is done and the real count is in, nothing else is going to re-run
+        -- that check, so we have to force the close ourselves if we're out
+        -- of choices.
+        if G.GAME.pack_choices <= 0 then
+            local ok = pcall(function()
+                G.FUNCS.skip_booster()
+            end)
+            if not ok then
+                print("[hex] star pick: couldn't auto-close the pack after last choice")
+            end
+        end
     end
 
     G.HEX_STAR_PICK_ACTIVE = false
@@ -7543,7 +8178,7 @@ G.FUNCS.hex_sacrifice = function(e)
     local card = e.config.ref_table
 
     if not card then return end
-
+    
     -- Safety net: never sacrifice an eternal Joker or the Absolute Joker,
     -- even if this somehow gets triggered outside the button (e.g. some
     -- other mod's UI hook). The button itself is disabled for these too.
@@ -7617,6 +8252,7 @@ function G.UIDEF.use_and_sell_buttons(card)
                         hover = not hex_disabled,
                         shadow = not hex_disabled,
                         colour = hex_disabled and hex_bg_colour or G.C.HEX_ORPLE,
+                        one_press = true,
                         button = (not hex_disabled) and "hex_sacrifice" or nil,
                     }, nodes={
                         {n=G.UIT.T, config={text=" HEX", colour = hex_disabled and hex_text_colour or G.C.WHITE, scale=0.5, shadow = not hex_disabled}}
@@ -7666,6 +8302,8 @@ G.FUNCS.create_ritual = function()
         "fractal",
         "eclipse",
         "manifest",
+        "ascension",
+        "big_bang",
     }
 
     local rituals = {}
