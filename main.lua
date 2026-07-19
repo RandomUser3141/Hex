@@ -289,6 +289,200 @@ local R_HEX_ABSOLUTE = SMODS.Rarity{
 }
 
 
+-- ============================================================
+-- Custom Poker Hands: Three Pair / Flush Three Pair / Four Pair /
+-- Flush Four Pair
+--
+-- Built on Steamodded's SMODS.PokerHandPart system. `parts._2` is
+-- Steamodded's own list of "all groups of at least 2 cards sharing a
+-- rank" (a Full House's own 3-of-a-kind group still counts as one of
+-- these groups too -- the same generalized way vanilla's rewritten Two
+-- Pair counts them, per Steamodded's own PR notes on the system), so
+-- "N pairs of different ranks" is just "at least N groups in parts._2",
+-- and the scoring cards are every card across all of those groups
+-- merged together. Like vanilla Full House also registering as Three
+-- of a Kind + Pair, these deliberately don't exclude each other or the
+-- vanilla hands -- Four Pair also counts as Three Pair (and Two Pair),
+-- and the Flush variants also count as their non-flush counterpart --
+-- only the Flush variants additionally require every one of those
+-- paired cards to share a suit.
+-- ============================================================
+
+-- Checks whether every card in `cards` shares the same suit, respecting
+-- Smeared Joker via SMODS.smeared_check -- the same helper vanilla-style
+-- Flush detection itself relies on for that. Only meaningful once the
+-- caller has already confirmed `cards` is non-empty.
+local function hex_cards_all_same_suit(cards)
+    if not cards or #cards == 0 then return false end
+
+    local target_suit = cards[1].base and cards[1].base.suit
+    if not target_suit then return false end
+
+    for _, c in ipairs(cards) do
+        local matches = c.base and (
+            c.base.suit == target_suit
+            or (SMODS.smeared_check and SMODS.smeared_check(c, target_suit))
+        )
+        if not matches then return false end
+    end
+
+    return true
+end
+
+-- Merges every parts._2 group (each group is itself a list of same-rank
+-- cards) into one flat, duplicate-free list of cards -- the same way
+-- Steamodded's own Two Pair evaluate merges all of its pair groups
+-- together instead of hard-capping at exactly two.
+local hex_table_unpack = table.unpack or unpack
+
+local function hex_merge_all_pair_groups(parts)
+    return SMODS.merge_lists(parts._2)
+end
+
+SMODS.PokerHand{
+    key = "three_pair",
+    visible = false,
+    mult = 20,
+    chips = 200,
+    l_mult = 5,
+    l_chips = 50,
+
+    loc_txt = {
+        name = "Three Pair",
+        description = {
+            "3 Pairs of",
+            "different ranks",
+        }
+    },
+
+    example = {
+        { 'S_9', true },
+        { 'H_9', true },
+        { 'C_5', true },
+        { 'D_5', true },
+        { 'S_3', true },
+        { 'H_3', true },
+    },
+
+    evaluate = function(parts, hand)
+        if #parts._2 >= 3 then
+            return { hex_merge_all_pair_groups(parts) }
+        end
+        return {}
+    end,
+}
+
+SMODS.PokerHand{
+    key = "flush_three_pair",
+    mult = 30,
+    chips = 300,
+    l_mult = 10,
+    l_chips = 100,
+    visible = false,
+
+    loc_txt = {
+        name = "Flush Three Pair",
+        description = {
+            "3 Pairs of different",
+            "ranks, all one suit",
+        }
+    },
+
+    example = {
+        { 'S_9', true },
+        { 'S_9', true },
+        { 'S_5', true },
+        { 'S_5', true },
+        { 'S_3', true },
+        { 'S_3', true },
+    },
+
+    evaluate = function(parts, hand)
+        if #parts._2 >= 3 then
+            local cards = hex_merge_all_pair_groups(parts)
+            if hex_cards_all_same_suit(cards) then
+                return { cards }
+            end
+        end
+        return {}
+    end,
+}
+
+SMODS.PokerHand{
+    key = "four_pair",
+    mult = 40,
+    chips = 400,
+    l_mult = 15,
+    l_chips = 200,
+    visible = false,
+
+    loc_txt = {
+        name = "Four Pair",
+        description = {
+            "4 Pairs of",
+            "different ranks",
+        }
+    },
+
+    example = {
+        { 'S_9', true },
+        { 'H_9', true },
+        { 'C_5', true },
+        { 'D_5', true },
+        { 'S_3', true },
+        { 'H_3', true },
+        { 'C_2', true },
+        { 'D_2', true },
+    },
+
+    evaluate = function(parts, hand)
+        if #parts._2 >= 4 then
+            return { hex_merge_all_pair_groups(parts) }
+        end
+        return {}
+    end,
+}
+
+SMODS.PokerHand{
+    key = "flush_four_pair",
+    mult = 50,
+    chips = 500,
+    l_mult = 35,
+    l_chips = 600,
+    visible = false,
+
+    loc_txt = {
+        name = "Flush Four Pair",
+        description = {
+            "4 Pairs of different",
+            "ranks, all one suit",
+        }
+    },
+
+    example = {
+        { 'S_9', true },
+        { 'S_9', true },
+        { 'S_5', true },
+        { 'S_5', true },
+        { 'S_3', true },
+        { 'S_3', true },
+        { 'S_2', true },
+        { 'S_2', true },
+    },
+
+    evaluate = function(parts, hand)
+        if #parts._2 >= 4 then
+            local cards = hex_merge_all_pair_groups(parts)
+            if hex_cards_all_same_suit(cards) then
+                return { cards }
+            end
+        end
+        return {}
+    end,
+}
+
+
+
 
 
 
@@ -940,17 +1134,16 @@ SMODS.Voucher{
     unlocked = true,
     discovered = true,
 
-    add_to_deck = function(self, card, from_debuff)
+    -- NOTE: Vouchers use `redeem`, not `add_to_deck` -- add_to_deck/
+    -- remove_from_deck are the generic Center hooks for when a card is
+    -- added to/removed from a persistent owned CardArea (how Jokers/Backs
+    -- work), but a Voucher card doesn't stick around in one of those
+    -- after being bought -- it's redeemed once and disappears. `redeem`
+    -- is Steamodded's own voucher-specific hook for that moment.
+    redeem = function(self, card)
         local center = G.P_CENTERS[HEX_SOUL_CENTER_KEY]
         if center and center.soul_rate then
             center.soul_rate = center.soul_rate * 2
-        end
-    end,
-
-    remove_from_deck = function(self, card, from_debuff)
-        local center = G.P_CENTERS[HEX_SOUL_CENTER_KEY]
-        if center and center.soul_rate then
-            center.soul_rate = center.soul_rate / 2
         end
     end,
 }
@@ -978,17 +1171,10 @@ SMODS.Voucher{
     unlocked = true,
     discovered = true,
 
-    add_to_deck = function(self, card, from_debuff)
+    redeem = function(self, card)
         local center = G.P_CENTERS[HEX_HEART_CENTER_KEY]
         if center and center.soul_rate then
             center.soul_rate = center.soul_rate * 2
-        end
-    end,
-
-    remove_from_deck = function(self, card, from_debuff)
-        local center = G.P_CENTERS[HEX_HEART_CENTER_KEY]
-        if center and center.soul_rate then
-            center.soul_rate = center.soul_rate / 2
         end
     end,
 }
@@ -1020,12 +1206,8 @@ SMODS.Voucher{
     unlocked = true,
     discovered = true,
 
-    add_to_deck = function(self, card, from_debuff)
+    redeem = function(self, card)
         G.GAME.hex_nova_unlocked = true
-    end,
-
-    remove_from_deck = function(self, card, from_debuff)
-        G.GAME.hex_nova_unlocked = false
     end,
 }
 
@@ -1057,12 +1239,8 @@ SMODS.Voucher{
     unlocked = true,
     discovered = true,
 
-    add_to_deck = function(self, card, from_debuff)
+    redeem = function(self, card)
         G.GAME.hex_reach_bonus_limit = (G.GAME.hex_reach_bonus_limit or 0) + 1
-    end,
-
-    remove_from_deck = function(self, card, from_debuff)
-        G.GAME.hex_reach_bonus_limit = (G.GAME.hex_reach_bonus_limit or 0) - 1
     end,
 }
 
@@ -1089,12 +1267,8 @@ SMODS.Voucher{
     unlocked = true,
     discovered = true,
 
-    add_to_deck = function(self, card, from_debuff)
+    redeem = function(self, card)
         G.GAME.hex_reach_bonus_limit = (G.GAME.hex_reach_bonus_limit or 0) + 2
-    end,
-
-    remove_from_deck = function(self, card, from_debuff)
-        G.GAME.hex_reach_bonus_limit = (G.GAME.hex_reach_bonus_limit or 0) - 2
     end,
 }
 
@@ -1129,12 +1303,8 @@ SMODS.Voucher{
     unlocked = true,
     discovered = true,
 
-    add_to_deck = function(self, card, from_debuff)
+    redeem = function(self, card)
         G.GAME.hex_negative_bunch_unlocked = true
-    end,
-
-    remove_from_deck = function(self, card, from_debuff)
-        G.GAME.hex_negative_bunch_unlocked = false
     end,
 }
 
@@ -1159,12 +1329,8 @@ SMODS.Voucher{
     unlocked = true,
     discovered = true,
 
-    add_to_deck = function(self, card, from_debuff)
+    redeem = function(self, card)
         G.GAME.hex_negative_cluster_unlocked = true
-    end,
-
-    remove_from_deck = function(self, card, from_debuff)
-        G.GAME.hex_negative_cluster_unlocked = false
     end,
 }
 
@@ -1567,14 +1733,7 @@ SMODS.Back{
         text = {
             "Start with a random",
             "{C:ritual}Ritual{} card",
-            "{C:mult}-4{} Joker slots",
         }
-    },
-
-    -- Same Steamodded joker_slot Back config field Infinite/Relic Deck
-    -- above use, just pinned down to a single slot this time.
-    config = {
-        joker_slot = -4
     },
 
     unlocked = true,
@@ -1658,17 +1817,9 @@ SMODS.Back{
         text = {
             "Start with a random",
             "{C:legendary}Legendary{} Joker",
-            "{C:mult}-2{} Joker slots",
         }
     },
 
-    -- joker_slot here is the same Steamodded Back config field Infinite
-    -- Deck uses above (just pinned to 3 instead of a huge number) -- it's
-    -- applied to G.jokers.config.card_limit automatically on start_run,
-    -- no extra hook needed for the slot count itself.
-    config = {
-        joker_slot = -2
-    },
 
     unlocked = true,
     discovered = true,
@@ -2460,7 +2611,7 @@ SMODS.Joker{
         name = "Trash bin",
         text = {
             "Gains times {X:mult,C:white}X1.5{} Mult",
-            "when selling a {C:rare}Rare{} Joker",
+            "when selling a {C:rare}Rare{} Joker", 
             "(Currently {X:mult,C:white}X#1#{} Mult)"
         }
     },
@@ -2468,8 +2619,8 @@ SMODS.Joker{
     atlas = "HexJokers",
     pos = { x = 8, y = 0 },
 
-    rarity = 4,
-    cost = 20,
+    rarity = 3,
+    cost = 8,
 
     unlocked = true,
     discovered = true,
@@ -5259,7 +5410,7 @@ SMODS.Consumable{
         name = "Antennae Galaxies",
         text = {
             "Makes a {C:attention}random{} Joker",
-            "{C:attention}without an Edition{}",
+            "{C:attention}without an Edition,{}",
             "{C:dark_red}Negative{}",
         }
     },
