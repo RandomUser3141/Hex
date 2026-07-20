@@ -705,12 +705,23 @@ SMODS.PokerHand{
 --
 -- The dynamic "starts at n*X chips / n*Y mult" scaling is instead
 -- applied exactly once, only at real play-time, via the
--- G.HEX_REAL_SCORING flag set below -- armed only inside a wrap of
--- G.FUNCS.evaluate_play (vanilla's actual "Play Hand" button handler),
--- which highlighting never touches. This mirrors how every other
--- dynamic effect in this file (Editions, Green Screen, Bonus Joker)
--- only ever mutates scoring state from inside a context hook that's
--- exclusively fired by real scoring, never by preview.
+-- G.HEX_REAL_SCORING flag. NOTE: this used to be armed/disarmed by
+-- wrapping G.FUNCS.evaluate_play (true right before calling the
+-- original, false right after) -- but that function only *kicks off*
+-- the Play Hand sequence; vanilla defers the actual hand evaluation
+-- (the very call to evaluate() that matters here) onto G.E_MANAGER as
+-- a delayed event, which doesn't run until a later frame. By the time
+-- it did, the wrapper had already flipped the flag back to false, so
+-- hex_apply_dynamic_n_hand below never fired and the hand's chips/mult
+-- silently stayed pinned at their static base values -- this was the
+-- actual bug causing N of a Kind / Flush N of a Kind to never scale.
+-- Instead, the flag is now derived every frame from G.STATE (see the
+-- Game:update poll further down the file) -- G.STATE only leaves
+-- G.STATES.SELECTING_HAND once a hand is actually being played/scored
+-- (Orion's own poll already relies on that same distinction), so this
+-- stays accurate for the entire scoring pass, deferred events included,
+-- while still reading false the whole time cards are merely highlighted
+-- for preview.
 -- ============================================================
 
 G.HEX_REAL_SCORING = false
@@ -777,22 +788,42 @@ SMODS.PokerHand{
         { 'H_9', true },
     },
 
+    -- N of a Kind
     evaluate = function(parts, hand)
         local group = hex_biggest_rank_group(hand)
 
         if group and #group >= 6 then
-            if G.HEX_REAL_SCORING then
-                hex_apply_dynamic_n_hand("n_of_a_kind", #group, 30, 3)
-            end
+            hex_apply_dynamic_n_hand(mod.prefix .. "_n_of_a_kind", #group, 30, 3)
             return { group }
         end
 
         return {}
     end,
+    -- Dynamic display name ("6 of a Kind", "7 of a Kind", ...). This is
+    -- Steamodded's own documented mechanism for this exact purpose (see
+    -- the SMODS.PokerHand wiki page's `modify_display_text` entry) --
+    -- rather than the display text being poked from inside evaluate(),
+    -- the engine calls this itself at the moment it actually needs the
+    -- name, and looks up whatever key is returned inside
+    -- misc.poker_hands. A fresh, count-specific key is registered (and
+    -- returned) each time rather than overwriting this hand's own base
+    -- "n_of_a_kind" entry, so the un-numbered name in the hands menu/
+    -- collection is left alone.
+    modify_display_text = function(self, cards, scoring_hand)
+        local group = hex_biggest_rank_group(scoring_hand or cards)
+
+        if group and #group >= 6 then
+            local key = mod.prefix .. "_n_of_a_kind_" .. tostring(#group)
+            if G.localization and G.localization.misc and G.localization.misc.poker_hands then
+                G.localization.misc.poker_hands[key] = tostring(#group) .. " of a Kind"
+            end
+            return key
+        end
+    end,
 }
 
 SMODS.PokerHand{
-    key = "flush_n_of_a_kind",
+    key = "flush_n",
     visible = false,
     mult = 30,
     chips = 240,
@@ -800,7 +831,7 @@ SMODS.PokerHand{
     l_chips = 25,
 
     loc_txt = {
-        name = "Flush N of a Kind",
+        name = "Flush N",
         description = {
             "6 or more cards of the",
             "same rank, all one suit",
@@ -816,38 +847,40 @@ SMODS.PokerHand{
         { 'S_9', true },
     },
 
+    -- Flush N
     evaluate = function(parts, hand)
         local group = hex_biggest_rank_group(hand)
 
         if group and #group >= 6 and hex_cards_all_same_suit(group) then
-            if G.HEX_REAL_SCORING then
-                hex_apply_dynamic_n_hand("flush_n_of_a_kind", #group, 40, 5)
-            end
+            hex_apply_dynamic_n_hand(mod.prefix .. "_flush_n", #group, 40, 5)
             return { group }
         end
 
         return {}
     end,
+
+    -- Same dynamic-name treatment as N of a Kind's own modify_display_text
+    -- above, just for the Flush key ("Flush", "Flush 7")
+    modify_display_text = function(self, cards, scoring_hand)
+        local group = hex_biggest_rank_group(scoring_hand or cards)
+
+        if group and #group >= 6 and hex_cards_all_same_suit(group) then
+            local key = mod.prefix .. "_flush_n" .. tostring(#group)
+            if G.localization and G.localization.misc and G.localization.misc.poker_hands then
+                G.localization.misc.poker_hands[key] = "Flush " .. tostring(#group) 
+            end
+            return key
+        end
+    end,
 }
 
--- Arms G.HEX_REAL_SCORING for the duration of vanilla's actual "Play
--- Hand" evaluation -- the one and only call path that should ever be
--- allowed to mutate hand_info.chips/mult above. Disarmed immediately
--- after, whether or not the play actually went through (pcall-wrapped
--- so a disarm always happens even if something inside errors).
-local hex_old_evaluate_play = G.FUNCS.evaluate_play
-
-G.FUNCS.evaluate_play = function(e)
-    G.HEX_REAL_SCORING = true
-
-    local ok, err = pcall(hex_old_evaluate_play, e)
-
-    G.HEX_REAL_SCORING = false
-
-    if not ok then
-        print("[hex] evaluate_play error: " .. tostring(err))
-    end
-end
+-- NOTE: this used to wrap G.FUNCS.evaluate_play here to arm/disarm
+-- G.HEX_REAL_SCORING around the "Play Hand" button press. That never
+-- actually worked -- see the comment on G.HEX_REAL_SCORING's own
+-- declaration above for why -- so it's been removed entirely in favor
+-- of deriving the flag from G.STATE every frame instead (see the
+-- Game:update poll further down the file, right next to the other
+-- "while owned/used, do X" checks like Fractal's and Procyon's).
 
 
 
@@ -1584,6 +1617,36 @@ SMODS.Voucher{
     end,
 }
 
+-- Hypernova: tier 2 of Nova, via `requires` (same tier-1/tier-2 pattern
+-- every other paired voucher in this file uses). Unlike Nova (which only
+-- unlocks Star Pack showing up as a booster), this lets individual Star
+-- cards themselves appear directly in the shop's normal consumable
+-- slots -- handled by the create_card hook's own shop-injection roll
+-- below, gated on this exact flag.
+SMODS.Voucher{
+    key = "hypernova",
+
+    loc_txt = {
+        name = "Hypernova",
+        text = {
+            "{C:star}Star cards{} can now",
+            "appear in the {C:attention}shop{}",
+        }
+    },
+
+    atlas = "HexVouchers",
+    pos = { x = 7, y = 0 }, -- NOTE: shares its atlas frame with the other (7,0) vouchers in this mod, per the existing convention -- move it to an unused frame in HexVouchers before shipping if that overlap isn't intentional.
+
+    requires = { "v_" .. mod.prefix .. "_nova" },
+
+    unlocked = true,
+    discovered = true,
+
+    redeem = function(self, card)
+        G.GAME.hex_hypernova_unlocked = true
+    end,
+}
+
 -- Reach / Long Reach: permanently raises the playing-card selection
 -- limit (the same limit Polydactyly overrides to effectively-infinite,
 -- and Pinwheel Galaxy nudges up a point at a time) via a persistent
@@ -1707,6 +1770,48 @@ SMODS.Voucher{
     end,
 }
 
+
+-- Overstock Plus Plus: tier 3 of vanilla's own Overstock line, gated
+-- behind Overstock Plus the same `requires`-based way every tier-2/
+-- tier-3 voucher in this file works. Unlike Overstock/Overstock Plus
+-- (which only ever touch the Joker row via G.GAME.shop.joker_max),
+-- vanilla has no equivalent field for extra booster/voucher shop slots
+-- -- so this is applied by hand in the Game:update poll further down
+-- the file, right alongside the other "while owned, do X every frame"
+-- checks.
+SMODS.Voucher{
+    key = "overstock_plus_plus",
+
+    loc_txt = {
+        name = "Overstock Plus Plus",
+        text = {
+            "{C:attention}+1{} booster pack slot",
+            "and {C:attention}+1{} voucher slot",
+            "available in the {C:attention}shop{}",
+        }
+    },
+
+    atlas = "HexVouchers",
+    pos = { x = 7, y = 0 }, -- NOTE: shares its atlas frame with the other (7,0) vouchers in this mod, per the existing convention -- move it to an unused frame in HexVouchers before shipping if that overlap isn't intentional.
+
+    -- NOTE: these are vanilla's own voucher keys (no mod prefix) --
+    -- double check "v_overstock_plus" matches this installed build if
+    -- the requirement doesn't seem to be triggering.
+    requires = { "v_overstock_plus" },
+
+    unlocked = true,
+    discovered = true,
+
+    redeem = function(self, card)
+        G.GAME.hex_overstock_ppp_unlocked = true
+    end,
+}
+
+
+
+
+
+
 SMODS.Back{
     key = "infinite_joker_deck",
 
@@ -1794,8 +1899,28 @@ end
 -- naturally rolled from the Spectral/Tarot pool.
 local HEX_STAR_PACK_CHANCE = 1 / 33
 
+
+local HEX_STAR_PACK_CHANCE = 1 / 33
+
+local function hex_owns_showman()
+    return SMODS.find_card and #SMODS.find_card("j_showman") > 0
+end
+
+-- Checks whether a Star (or any) consumable with this exact key is
+-- currently sitting in the player's consumable slots.
+local function hex_consumable_already_owned(key)
+    if not (G.consumeables and G.consumeables.cards) then return false end
+    for _, c in ipairs(G.consumeables.cards) do
+        if c.config and c.config.center and c.config.center.key == key then
+            return true
+        end
+    end
+    return false
+end
+
 local function hex_get_star_centers()
     local out = {}
+    local showman = hex_owns_showman()
 
     local toi_125_key = "c_" .. mod.prefix .. "_toi_125"
     local vy_key = "c_" .. mod.prefix .. "_vy_canis_majoris"
@@ -1804,17 +1929,11 @@ local function hex_get_star_centers()
         if center.set == "star" then
             local skip = false
 
-            -- Toi-125: once used, it can never show up again (see its
-            -- `use` function further down the file, which flips
-            -- hex_toi_125_used).
             if center.key == toi_125_key
             and G.GAME and G.GAME.hex_toi_125_used then
                 skip = true
             end
 
-            -- VY Canis Majoris: hidden entirely until Toi-125 has been
-            -- used to unlock it, and then -- same as Toi-125 -- can never
-            -- show up again once it's been used itself.
             if center.key == vy_key then
                 if not (G.GAME and G.GAME.hex_vy_unlocked) then
                     skip = true
@@ -1822,6 +1941,10 @@ local function hex_get_star_centers()
                 if G.GAME and G.GAME.hex_vy_used then
                     skip = true
                 end
+            end
+
+            if not skip and not showman and hex_consumable_already_owned(center.key) then
+                skip = true
             end
 
             if not skip then
@@ -1848,9 +1971,40 @@ local function hex_get_galaxy_centers()
     return out
 end
 
+-- Base chance for an individual shop consumable slot to be replaced with
+-- a Star card instead, once Hypernova has been bought. Kept independent
+-- of HEX_STAR_PACK_CHANCE (packs show several cards at once; the shop
+-- only ever has a couple of consumable slots showing at any moment), so
+-- tune this on its own if Star cards feel too rare/common in the shop.
+local HEX_STAR_SHOP_CHANCE = 1 / 14
+
+
 local old_create_card = create_card
 
 function create_card(_type, area, legendary, _rarity, skip_materialize, soulable, forced_key, key_append)
+
+
+    -- Hypernova: an individual shop consumable slot has a flat chance to
+    -- be forced into a random Star card instead of whatever it would
+    -- have naturally rolled (Tarot/Planet/Spectral). Gated on
+    -- hex_hypernova_unlocked and `not forced_key` (so this never
+    -- overrides something already forced by another source), and only
+    -- applies to G.shop_jokers -- the shared area vanilla uses for both
+    -- shop Jokers and shop consumables -- so Joker shop slots are
+    -- naturally untouched (Star's own `_type` check below only ever
+    -- matches Tarot/Planet/Spectral generation, never "Joker").
+    if area == G.shop_jokers
+    and (_type == "Tarot" or _type == "Planet" or _type == "Spectral")
+    and not forced_key
+    and G.GAME and G.GAME.hex_hypernova_unlocked
+    and pseudorandom(pseudoseed(mod.prefix .. "_hypernova_shop")) < HEX_STAR_SHOP_CHANCE then
+
+        local stars = hex_get_star_centers()
+        if #stars > 0 then
+            forced_key = stars[math.random(#stars)].key
+        end
+    end
+
 
     -- Galaxy cards get first crack at a Spectral/Tarot pack slot (1 in
     -- 50 -- rarer than Star's 1 in 33 checked right after it). Both
@@ -2675,6 +2829,7 @@ function Game:start_run(...)
             hand_size = rolled_hand_size,
         }
 
+
         -- Hands / Discards: overwrite both the per-round baseline
         -- (round_resets, used every time a new round starts) and, if
         -- round 1's live counters already exist by this point, those too,
@@ -2871,6 +3026,14 @@ SMODS.Joker{
         }
     },
 
+    loc_vars = function(self, info_queue, card)
+        info_queue[#info_queue + 1] = G.P_SEALS.Gold
+        info_queue[#info_queue + 1] = G.P_SEALS.Red
+        info_queue[#info_queue + 1] = G.P_SEALS.Blue
+        info_queue[#info_queue + 1] = G.P_SEALS.Purple
+        return { vars = {} }
+    end,
+
     atlas = "HexJokers",
     pos = { x = 6, y = 0 }, -- next open frame in the atlas, adjust if taken
 
@@ -2905,12 +3068,12 @@ SMODS.Joker{
     loc_txt = {
         name = "Bonus Joker",
         text = {
-            "This Joker gains {X:mult,C:white}X0.10{} Mult",
+            "This Joker gains {X:mult,C:white}X0.25{} Mult",
             "every bonus card scored",
             "(Currently {X:mult,C:white}X#1#{} Mult)"
         }
     },
-    config = { extra = { Xmult = big(1), Xmult_gain = big(0.1) } },
+    config = { extra = { Xmult = big(1), Xmult_gain = big(0.25) } },
     atlas = "HexJokers",
     pos = { x = 1, y = 0 }, -- second frame in the atlas (sprite to the right)
     rarity = 3,             -- 1 common, 2 uncommon, 3 rare, 4 legendary
@@ -3114,7 +3277,7 @@ SMODS.Joker{
     loc_txt = {
         name = "Lemniscate",
         text = {
-            "Raises final Mult to the power of {C:purple}^#1#{}",
+            "Raises Mult to the power of {C:purple}^#1#{}",
             "Gains {C:purple}+0.01{} power",
             "for every card triggered",
         }
@@ -3779,6 +3942,14 @@ SMODS.ConsumableType{
     can_divide = true,
 }
 
+
+
+
+
+local HEX_STAR_PACK_WEIGHT = ((G.P_CENTERS.p_spectral_normal and G.P_CENTERS.p_spectral_normal.weight) or 0.6) / 2
+
+
+
 -- Star Pack: a Spectral-pack-style booster (3 cards shown, choose 1)
 -- whose contents are always drawn from this mod's own Star pool (see
 -- hex_get_star_centers above) instead of the normal Spectral/Tarot
@@ -3825,7 +3996,7 @@ SMODS.Booster{
         return (G.GAME and G.GAME.hex_nova_unlocked) or false
     end,
 
-    weight = ((G.P_CENTERS.p_spectral_normal and G.P_CENTERS.p_spectral_normal.weight) or 0.6) / 2,
+    weight = HEX_STAR_PACK_WEIGHT,
 
     create_card = function(self, card, i)
         local chosen_key = nil
@@ -3855,6 +4026,151 @@ SMODS.Booster{
         }
     end,
 }
+
+
+-- Jumbo Star Pack: same Star-only pool as Star Pack, just 5 cards shown
+-- (choose 1), the same "Normal -> Jumbo" size step vanilla's own Arcana/
+-- Celestial/Spectral/Standard/Buffoon Jumbo packs use. Weight is half of
+-- Star Pack's own, mirroring the size-vs-rarity tradeoff vanilla's own
+-- Jumbo packs make relative to their Normal counterpart.
+SMODS.Booster{
+    key = "jumbo_star_pack",
+    kind = "star",
+
+    atlas = "HexBoosters",
+    pos = { x = 0, y = 5 }, 
+
+    config = { extra = 5, choose = 1 },
+
+    loc_txt = {
+        name = "Jumbo Star Pack",
+        group_name = "Star Pack",
+        text = {
+            "Choose {C:attention}1{} of {C:attention}5{}",
+            "{C:star}Star{} cards",
+        }
+    },
+
+    unlocked = true,
+    discovered = true,
+    draw_hand = true,
+
+    in_pool = function(self)
+        return (G.GAME and G.GAME.hex_nova_unlocked) or false
+    end,
+
+    weight = HEX_STAR_PACK_WEIGHT / 2,
+
+    create_card = function(self, card, i)
+        local chosen_key = nil
+
+        if pseudorandom(pseudoseed(mod.prefix .. "_jumbo_star_pack_galaxy")) < HEX_GALAXY_IN_STARPACK_CHANCE then
+            local galaxies = hex_get_galaxy_centers()
+            if #galaxies > 0 then
+                chosen_key = galaxies[math.random(#galaxies)].key
+            end
+        end
+
+        if not chosen_key then
+            local stars = hex_get_star_centers()
+            if #stars > 0 then
+                chosen_key = stars[math.random(#stars)].key
+            end
+        end
+
+        if not chosen_key then
+            return { set = "Joker", area = G.pack_cards }
+        end
+
+        return {
+            key = chosen_key,
+            area = G.pack_cards,
+            skip_materialize = true,
+        }
+    end,
+}
+
+-- Mega Star Pack: same pool again, 5 cards shown but choose 2, the
+-- "Jumbo -> Mega" step vanilla's own packs use. Weight is half of Jumbo
+-- Star Pack's own, so it's the rarest of the three tiers.
+SMODS.Booster{
+    key = "mega_star_pack",
+    kind = "star",
+
+    atlas = "HexBoosters",
+    pos = { x = 0, y = 5 }, 
+
+    config = { extra = 5, choose = 2 },
+
+    loc_txt = {
+        name = "Mega Star Pack",
+        group_name = "Star Pack",
+        text = {
+            "Choose {C:attention}2{} of {C:attention}5{}",
+            "{C:star}Star{} cards",
+        }
+    },
+
+    unlocked = true,
+    discovered = true,
+    draw_hand = true,
+
+    in_pool = function(self)
+        return (G.GAME and G.GAME.hex_nova_unlocked) or false
+    end,
+
+    weight = HEX_STAR_PACK_WEIGHT / 4,
+
+    create_card = function(self, card, i)
+        local chosen_key = nil
+
+        if pseudorandom(pseudoseed(mod.prefix .. "_mega_star_pack_galaxy")) < HEX_GALAXY_IN_STARPACK_CHANCE then
+            local galaxies = hex_get_galaxy_centers()
+            if #galaxies > 0 then
+                chosen_key = galaxies[math.random(#galaxies)].key
+            end
+        end
+
+        if not chosen_key then
+            local stars = hex_get_star_centers()
+            if #stars > 0 then
+                chosen_key = stars[math.random(#stars)].key
+            end
+        end
+
+        if not chosen_key then
+            return { set = "Joker", area = G.pack_cards }
+        end
+
+        return {
+            key = chosen_key,
+            area = G.pack_cards,
+            skip_materialize = true,
+        }
+    end,
+}
+
+
+
+
+
+
+local function hex_owns_showman()
+    return SMODS.find_card and #SMODS.find_card("j_showman") > 0
+end
+
+-- Checks whether a Star (or any) consumable with this exact key is
+-- currently sitting in the player's consumable slots.
+local function hex_consumable_already_owned(key)
+    if not (G.consumeables and G.consumeables.cards) then return false end
+    for _, c in ipairs(G.consumeables.cards) do
+        if c.config and c.config.center and c.config.center.key == key then
+            return true
+        end
+    end
+    return false
+end
+
 
 
 
@@ -4765,6 +5081,13 @@ SMODS.Consumable{
         }
     },
 
+    loc_vars = function(self, info_queue, card)
+        info_queue[#info_queue + 1] = G.P_CENTERS.e_foil
+        info_queue[#info_queue + 1] = G.P_CENTERS.e_holo
+        info_queue[#info_queue + 1] = G.P_CENTERS.e_polychrome
+        return { vars = {} }
+    end,
+
     -- Shared helper so can_use and use always agree on what's eligible.
     can_use = function(self, card)
         if not (G.jokers and G.jokers.cards) then return false end
@@ -4884,6 +5207,11 @@ SMODS.Consumable{
             "{C:attention}Black Seal{}",
         }
     },
+
+    loc_vars = function(self, info_queue, card)
+        info_queue[#info_queue + 1] = G.P_SEALS[mod.prefix .. "_black"]
+        return { vars = {} }
+    end,
 
     can_use = function(self, card)
         return G.hand and G.hand.highlighted and #G.hand.highlighted == 1
@@ -5330,6 +5658,11 @@ SMODS.Consumable{
         }
     },
 
+    loc_vars = function(self, info_queue, card)
+        info_queue[#info_queue + 1] = G.P_SEALS[mod.prefix .. "_orange"]
+        return { vars = {} }
+    end,
+
     can_use = function(self, card)
         return G.hand and G.hand.highlighted and #G.hand.highlighted == 1
     end,
@@ -5658,6 +5991,11 @@ SMODS.Consumable{
         }
     },
 
+    loc_vars = function(self, info_queue, card)
+        info_queue[#info_queue + 1] = G.P_SEALS[mod.prefix .. "_green"]
+        return { vars = {} }
+    end,
+
     can_use = function(self, card)
         return G.hand and G.hand.highlighted and #G.hand.highlighted == 1
     end,
@@ -5794,6 +6132,13 @@ SMODS.Consumable{
             "or {C:blue}Brilliant{}",
         }
     },
+
+    loc_vars = function(self, info_queue, card)
+        info_queue[#info_queue + 1] = G.P_CENTERS["e_" .. mod.prefix .. "_prismatic"]
+        info_queue[#info_queue + 1] = G.P_CENTERS["e_" .. mod.prefix .. "_chromatic"]
+        info_queue[#info_queue + 1] = G.P_CENTERS["e_" .. mod.prefix .. "_brilliant"]
+        return { vars = {} }
+    end,
 
     -- Shared helper so can_use and use always agree on what's eligible.
     can_use = function(self, card)
@@ -7893,6 +8238,21 @@ function Game:update(dt)
         end
     end
 
+    -- N of a Kind / Flush N of a Kind: derives G.HEX_REAL_SCORING from
+    -- G.STATE every frame instead of trying to toggle it around
+    -- G.FUNCS.evaluate_play (see the long comment on G.HEX_REAL_SCORING's
+    -- own declaration, and the one where that old wrap used to live, for
+    -- why the wrap approach never actually worked). G.STATE only moves
+    -- away from G.STATES.SELECTING_HAND once a hand is genuinely being
+    -- played/scored -- the same distinction Orion's own poll above
+    -- already relies on -- so this stays true for the entire scoring
+    -- pass, including every deferred G.E_MANAGER event that pass queues
+    -- up, and reads false the whole time cards are merely highlighted
+    -- for the live preview.
+    if G.STATE then
+        G.HEX_REAL_SCORING = (G.STATE ~= G.STATES.SELECTING_HAND)
+    end
+
     -- Coupon: while owned, the shop reroll cost is pinned to $1.
     --
     -- G.GAME.round_resets.reroll_cost is only the *base* cost that gets
@@ -7910,6 +8270,52 @@ function Game:update(dt)
         end
         if G.GAME.current_round then
             G.GAME.current_round.reroll_cost = 1
+        end
+    end
+
+    -- Overstock Plus Plus: grows the shop's booster and voucher
+    -- CardAreas by +1 slot each and spawns a matching card into the new
+    -- slot, once per shop visit (each area is a freshly-created object
+    -- every time the shop opens, so tagging the object itself with
+    -- hex_ppp_applied is enough of a dedupe -- no separate round/visit
+    -- counter needed). Wrapped in pcall since the exact vanilla area
+    -- names/create_card `_type` strings for boosters/vouchers weren't
+    -- independently verified against this installed build -- if slots
+    -- don't appear, check the printed error for the real names/types.
+    if G.GAME and G.GAME.hex_overstock_ppp_unlocked and G.STATE == G.STATES.SHOP then
+        if G.shop_booster and not G.shop_booster.hex_ppp_applied then
+            G.shop_booster.hex_ppp_applied = true
+            G.shop_booster.config.card_limit = (G.shop_booster.config.card_limit or 2) + 1
+
+            local ok, err = pcall(function()
+                local card = create_card('Booster', G.shop_booster)
+                G.shop_booster:emplace(card)
+                G.shop_booster:align_cards()
+
+                -- DEBUG: compare against an existing (working) card in the same area
+                local ref = G.shop_booster.cards[1]
+                print("[hex debug] new card button:", card.config and card.config.button, "| ref button:", ref and ref.config and ref.config.button)
+                print("[hex debug] new card area:", tostring(card.area), "| ref area:", tostring(ref and ref.area))
+                print("[hex debug] new click.can:", card.states and card.states.click and card.states.click.can,
+                    "| ref click.can:", ref and ref.states and ref.states.click and ref.states.click.can)
+            end)
+            if not ok then
+                print("[hex] Overstock Plus Plus: failed to add booster slot: " .. tostring(err))
+            end
+        end
+
+        if G.shop_vouchers and not G.shop_vouchers.hex_ppp_applied then
+            G.shop_vouchers.hex_ppp_applied = true
+            G.shop_vouchers.config.card_limit = (G.shop_vouchers.config.card_limit or 1) + 1
+
+            local ok, err = pcall(function()
+                local card = create_card('Voucher', G.shop_vouchers)
+                G.shop_vouchers:emplace(card)
+                G.shop_vouchers:align_cards()
+            end)
+            if not ok then
+                print("[hex] Overstock Plus Plus: failed to add voucher slot: " .. tostring(err))
+            end
         end
     end
 
@@ -8084,7 +8490,8 @@ function Game:start_run(...)
     G.GAME.hex_rituals_used = G.GAME.hex_rituals_used or {}
     G.GAME.hex_rituals_summoned = G.GAME.hex_rituals_summoned or {}
     local ret = old_start_run(self, ...)
-
+    G.GAME.hex_overstock_ppp_unlocked = G.GAME.hex_overstock_ppp_unlocked or false
+    G.GAME.hex_hypernova_unlocked = G.GAME.hex_hypernova_unlocked or false
     G.GAME.hex_points = G.GAME.hex_points or big(0)
     G.GAME.hex_display = hex_format_points(G.GAME.hex_points)
     G.GAME.hex_hyperbolic_level = G.GAME.hex_hyperbolic_level or 0
