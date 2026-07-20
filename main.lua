@@ -1771,13 +1771,6 @@ SMODS.Voucher{
 }
 
 
--- Overstock Plus Plus: tier 3 of vanilla's own Overstock line, gated
--- behind Overstock Plus the same `requires`-based way every tier-2/
--- tier-3 voucher in this file works. Unlike Overstock/Overstock Plus
--- (which only ever touch the Joker row via G.GAME.shop.joker_max),
--- vanilla has no equivalent field for extra booster/voucher shop slots
--- -- so this is applied by hand in the Game:update poll further down
--- the file, right alongside the other "while owned, do X every frame"
 -- checks.
 SMODS.Voucher{
     key = "overstock_plus_plus",
@@ -1792,18 +1785,16 @@ SMODS.Voucher{
     },
 
     atlas = "HexVouchers",
-    pos = { x = 7, y = 0 }, -- NOTE: shares its atlas frame with the other (7,0) vouchers in this mod, per the existing convention -- move it to an unused frame in HexVouchers before shipping if that overlap isn't intentional.
+    pos = { x = 7, y = 0 },
 
-    -- NOTE: these are vanilla's own voucher keys (no mod prefix) --
-    -- double check "v_overstock_plus" matches this installed build if
-    -- the requirement doesn't seem to be triggering.
     requires = { "v_overstock_plus" },
 
     unlocked = true,
     discovered = true,
 
     redeem = function(self, card)
-        G.GAME.hex_overstock_ppp_unlocked = true
+        SMODS.change_booster_limit(1)
+        SMODS.change_voucher_limit(1)
     end,
 }
 
@@ -2908,20 +2899,10 @@ SMODS.Joker{
 
         if context.joker_main then
             return {
-                func = function()
-                    local power = 2
-
-                    if card.ability and card.ability.extra then
-                        power = card.ability.extra.exponent or 2
-                    end
-
-                    mult = to_big(mult):arrow(1, power)
-                    update_hand_text({delay = 0}, {mult = mult})
-                end,
-
-                message = "^2",
+                e_mult = big(2),
                 colour = G.C.PURPLE
             }
+
         end
     end
 }
@@ -3048,7 +3029,8 @@ SMODS.Joker{
         if context.individual
         and context.cardarea == G.play
         and not context.blueprint
-        and context.other_card.base.value == "Ace" then
+        and context.other_card.base.value == "Ace"
+        and not context.other_card.seal then -- only seal it on the first trigger; retriggers see the seal already applied and skip
 
             local seals = { "Gold", "Red", "Blue", "Purple"}
             local chosen_seal = pseudorandom_element(seals, pseudoseed("the_seal_of_aces"))
@@ -3328,27 +3310,14 @@ SMODS.Joker{
 
         end
 
-        -- Applied when this  Joker itself scores, in its actual position
-        -- among the Joker slots, rather than being forced to the very end
-        -- of scoring. Jokers to its left have already modified Mult by the
-        -- time this power is applied; Jokers to its right build on top of
-        -- it. Uses Amulet's OmegaNum arrow(1, b) = a^b instead of Lua's `^`
-        -- so it stays accurate once Mult exceeds double-precision range.
         if context.joker_main and not context.blueprint then
 
             local exponent = card.ability.extra.exponent or big(1)
 
-            -- string.format can't accept OmegaNum cdata directly, so we
-            -- only convert down to a plain number for the on-screen text --
-            -- the actual scoring math above always uses the big `exponent`.
             local exponent_display = hex_to_plain_number(exponent)
 
             return {
-                func = function()
-                    mult = to_big(mult):arrow(1,  exponent)
-                    update_hand_text({delay = 0}, {mult = mult})
-                end,
-                message = "^" .. string.format("%.2f", exponent_display),
+                e_mult = exponent,
                 colour = G.C.PURPLE
             }
 
@@ -8214,6 +8183,7 @@ local function hex_create_absolute_button(disabled)
     }
 end
 
+
 -- Keep display updated
 local old_game_update = Game.update
 
@@ -8270,52 +8240,6 @@ function Game:update(dt)
         end
         if G.GAME.current_round then
             G.GAME.current_round.reroll_cost = 1
-        end
-    end
-
-    -- Overstock Plus Plus: grows the shop's booster and voucher
-    -- CardAreas by +1 slot each and spawns a matching card into the new
-    -- slot, once per shop visit (each area is a freshly-created object
-    -- every time the shop opens, so tagging the object itself with
-    -- hex_ppp_applied is enough of a dedupe -- no separate round/visit
-    -- counter needed). Wrapped in pcall since the exact vanilla area
-    -- names/create_card `_type` strings for boosters/vouchers weren't
-    -- independently verified against this installed build -- if slots
-    -- don't appear, check the printed error for the real names/types.
-    if G.GAME and G.GAME.hex_overstock_ppp_unlocked and G.STATE == G.STATES.SHOP then
-        if G.shop_booster and not G.shop_booster.hex_ppp_applied then
-            G.shop_booster.hex_ppp_applied = true
-            G.shop_booster.config.card_limit = (G.shop_booster.config.card_limit or 2) + 1
-
-            local ok, err = pcall(function()
-                local card = create_card('Booster', G.shop_booster)
-                G.shop_booster:emplace(card)
-                G.shop_booster:align_cards()
-
-                -- DEBUG: compare against an existing (working) card in the same area
-                local ref = G.shop_booster.cards[1]
-                print("[hex debug] new card button:", card.config and card.config.button, "| ref button:", ref and ref.config and ref.config.button)
-                print("[hex debug] new card area:", tostring(card.area), "| ref area:", tostring(ref and ref.area))
-                print("[hex debug] new click.can:", card.states and card.states.click and card.states.click.can,
-                    "| ref click.can:", ref and ref.states and ref.states.click and ref.states.click.can)
-            end)
-            if not ok then
-                print("[hex] Overstock Plus Plus: failed to add booster slot: " .. tostring(err))
-            end
-        end
-
-        if G.shop_vouchers and not G.shop_vouchers.hex_ppp_applied then
-            G.shop_vouchers.hex_ppp_applied = true
-            G.shop_vouchers.config.card_limit = (G.shop_vouchers.config.card_limit or 1) + 1
-
-            local ok, err = pcall(function()
-                local card = create_card('Voucher', G.shop_vouchers)
-                G.shop_vouchers:emplace(card)
-                G.shop_vouchers:align_cards()
-            end)
-            if not ok then
-                print("[hex] Overstock Plus Plus: failed to add voucher slot: " .. tostring(err))
-            end
         end
     end
 
