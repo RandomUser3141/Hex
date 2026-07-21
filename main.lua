@@ -173,8 +173,14 @@ SMODS.Atlas{
 }
 
 SMODS.Atlas{
-    key = "HexPlanetsSpectrals",
-    path = "Planets_and_Spectrals.png",
+    key = "HexPlanets",
+    path = "Planets.png",
+    px = 71,
+    py = 95,
+}
+SMODS.Atlas{
+    key = "HexSpectrals",
+    path = "Spectrals.png",
     px = 71,
     py = 95,
 }
@@ -884,6 +890,1295 @@ SMODS.PokerHand{
 
 
 
+SMODS.PokerHand{
+    key = "none",
+    visible = true, -- shows up in the Poker Hands / leveling screen, unlike your merged-variant hands (Three Pair etc.) which stay hidden
+    mult = 0,
+    chips = 0,
+    l_mult = 1,
+    l_chips = 1,
+
+    loc_txt = {
+        name = "None",
+        description = {
+            "Play {C:attention}0{} cards",
+        }
+    },
+
+    example = {}, -- no example cards, since this hand is 0 cards by definition
+
+    -- Fires when the played hand is genuinely empty. Every other
+    -- PokerHand's evaluate() in this file indexes into `parts` (parts._2,
+    -- parts._flush, etc.), which Steamodded builds *from* the hand's
+    -- cards -- with 0 cards, some of those parts tables may not exist at
+    -- all, so this deliberately checks `hand` directly instead of parts,
+    -- and never touches parts.
+    evaluate = function(parts, hand)
+        if hand and #hand == 0 then
+            return { {} } -- one scoring group, containing zero cards
+        end
+        return {}
+    end,
+}
+
+
+
+
+
+
+
+
+
+-- ============================================================
+-- New Planet cards: hand-specific Chips/Mult levelers & multipliers
+-- ============================================================
+-- Two shared factories cover every card below:
+--   hex_make_level_planet  -- adds a flat number of levels to one
+--                              specific hand, via vanilla's own
+--                              level_up_hand (same call Vega/Canopus/
+--                              Hoag's Object already use elsewhere in
+--                              this file).
+--   hex_make_stat_planet   -- permanently multiplies one specific
+--                              hand's base Chips and/or Mult by a fixed
+--                              factor, applied directly to
+--                              G.GAME.hands[key].chips/.mult -- same
+--                              live-mutation approach Polaris already
+--                              uses above, just scoped to one hand
+--                              instead of every hand, and via three
+--                              possible operations:
+--                                op = "mult"    -> plain X<factor> multiply
+--                                op = "pow"     -> arrow(1, factor), i.e. ^factor
+--                                op = "tetrate" -> arrow(2, factor), i.e. ^^factor
+--                              (Per the note at the very top of this file:
+--                              arrow(1,x) is always "to the power", while
+--                              tetration is arrow(2,x) -- NOT the arrow(1)=
+--                              multiply/arrow(2)=power mapping documented
+--                              on Absolute's hyperoperator calculation
+--                              further down; that comment describes a
+--                              different, unrelated system.)
+--
+-- Every card here stacks uncapped with repeated uses, the same way
+-- Polaris's own repeated-use multiply already does -- there's no
+-- separate persistent-counter field being tracked, just the live
+-- hand.chips/.mult value being multiplied again each time.
+-- ============================================================
+
+local function hex_planet_apply_stat(hand_key, stat, op, factor)
+    if not (G.GAME and G.GAME.hands and G.GAME.hands[hand_key]) then return end
+
+    local hand = G.GAME.hands[hand_key]
+    local current = hand[stat]
+    if not current then return end
+
+    if op == "mult" then
+        hand[stat] = to_big(current) * big(factor)
+    elseif op == "pow" then
+        hand[stat] = to_big(current):arrow(1, factor)
+    elseif op == "tetrate" then
+        hand[stat] = to_big(current):arrow(2, factor)
+    end
+end
+
+-- args: key, name, hand_key, levels, atlas, pos, text
+local function hex_make_level_planet(args)
+    SMODS.Consumable{
+        key = args.key,
+        set = "Planet",
+
+        atlas = args.atlas,
+        pos = args.pos,
+
+        unlocked = true,
+        discovered = true,
+
+        in_pool = function(self) return true end,
+        in_pool = args.in_pool or function(self) return true end,
+
+        loc_txt = {
+            name = args.name,
+            text = args.text,
+        },
+
+        can_use = function(self, card)
+            return true
+        end,
+
+        use = function(self, card)
+            -- bypass_visual = nil lets vanilla's own level-up popup play,
+            -- same as Vega's own call above; the extra card_eval_status_text
+            -- below matches Vega's own redundant-but-established pattern
+            -- of also showing our own confirmation message.
+            level_up_hand(card, args.hand_key, nil, args.levels)
+
+            card_eval_status_text(card, "extra", nil, nil, nil, {
+                message = "+" .. tostring(args.levels) .. " Levels",
+                colour = G.C.STAR
+            })
+        end,
+    }
+end
+
+-- args: key, name, hand_key, stats (list of "chips"/"mult"), op, factor,
+-- atlas, pos, text, status_message
+local function hex_make_stat_planet(args)
+    SMODS.Consumable{
+        key = args.key,
+        set = "Planet",
+
+        atlas = args.atlas,
+        pos = args.pos,
+
+        unlocked = true,
+        discovered = true,
+
+        in_pool = function(self) return true end,
+        in_pool = args.in_pool or function(self) return true end,
+        
+        loc_txt = {
+            name = args.name,
+            text = args.text,
+        },
+
+        can_use = function(self, card)
+            return true
+        end,
+
+        use = function(self, card)
+            for _, stat in ipairs(args.stats) do
+                hex_planet_apply_stat(args.hand_key, stat, args.op, args.factor)
+            end
+
+            card_eval_status_text(card, "extra", nil, nil, nil, {
+                message = args.status_message,
+                colour = (#args.stats == 1 and args.stats[1] == "chips") and G.C.CHIPS or G.C.MULT
+            })
+        end,
+    }
+end
+
+
+-- Returns an in_pool function that only allows this card to appear once
+-- the given (mod-prefixed) hand key has been played at least once this
+-- run. Used for the "only shows up when you have played this hand" cards.
+local function hex_hand_played_check(hand_key)
+    return function(self)
+        return G.GAME
+            and G.GAME.hands
+            and G.GAME.hands[hand_key]
+            and (G.GAME.hands[hand_key].played or 0) > 0
+    end
+end
+
+
+-- ---- Full House ----
+
+hex_make_level_planet{
+    key = "the_moon",
+    name = "The Moon",
+    hand_key = "Full House",
+    levels = 2,
+    atlas = "HexPlanets",
+    pos = { x = 0, y = 0 }, -- placeholder art slot, adjust before shipping
+    text = {
+        "Upgrades {C:attention}Full House{}",
+        "by {C:attention}2{} levels",
+    },
+}
+
+
+-- ---- Four of a Kind ----
+
+hex_make_stat_planet{
+    key = "phobos",
+    name = "Phobos",
+    hand_key = "Four of a Kind",
+    stats = { "chips" },
+    op = "mult",
+    factor = 1.75,
+    atlas = "HexPlanets",
+    pos = { x = 1, y = 0 },
+    text = {
+        "Upgrades {C:attention}Four of a Kind{}",
+        "{C:chips}Chips{} by {C:chips}X1.75{}",
+    },
+    status_message = "X1.75 Chips",
+}
+
+hex_make_stat_planet{
+    key = "deimos",
+    name = "Deimos",
+    hand_key = "Four of a Kind",
+    stats = { "mult" },
+    op = "mult",
+    factor = 1.75,
+    atlas = "HexPlanets",
+    pos = { x = 2, y = 0 },
+    text = {
+        "Upgrades {C:attention}Four of a Kind{}",
+        "{C:mult}Mult{} by {C:mult}X1.75{}",
+    },
+    status_message = "X1.75 Mult",
+}
+
+
+-- ---- Flush House ----
+
+hex_make_level_planet{
+    key = "vesta",
+    name = "Vesta",
+    hand_key = "Flush House",
+    levels = 2,
+    atlas = "HexPlanets",
+    pos = { x = 3, y = 0 },
+    text = {
+        "Upgrades {C:attention}Flush House{}",
+        "by {C:attention}2{} levels",
+    },
+}
+
+hex_make_stat_planet{
+    key = "pallas",
+    name = "Pallas",
+    hand_key = "Flush House",
+    stats = { "chips" },
+    op = "mult",
+    factor = 1.75,
+    atlas = "HexPlanets",
+    pos = { x = 4, y = 0 },
+    text = {
+        "Upgrades {C:attention}Flush House{}",
+        "{C:chips}Chips{} by {C:chips}X1.75{}",
+    },
+    status_message = "X1.75 Chips",
+}
+
+hex_make_stat_planet{
+    key = "hygiea",
+    name = "Hygiea",
+    hand_key = "Flush House",
+    stats = { "mult" },
+    op = "mult",
+    factor = 1.75,
+    atlas = "HexPlanets",
+    pos = { x = 5, y = 0 },
+    text = {
+        "Upgrades {C:attention}Flush House{}",
+        "{C:mult}Mult{} by {C:mult}X1.75{}",
+    },
+    status_message = "X1.75 Mult",
+}
+
+
+-- ---- Flush ----
+
+hex_make_level_planet{
+    key = "io",
+    name = "Io",
+    hand_key = "Flush",
+    levels = 2,
+    atlas = "HexPlanets",
+    pos = { x = 6, y = 0 },
+    text = {
+        "Upgrades {C:attention}Flush{}",
+        "by {C:attention}2{} levels",
+    },
+}
+
+hex_make_stat_planet{
+    key = "europa",
+    name = "Europa",
+    hand_key = "Flush",
+    stats = { "chips" },
+    op = "mult",
+    factor = 1.75,
+    atlas = "HexPlanets",
+    pos = { x = 7, y = 0 },
+    text = {
+        "Upgrades {C:attention}Flush{}",
+        "{C:chips}Chips{} by {C:chips}X1.75{}",
+    },
+    status_message = "X1.75 Chips",
+}
+
+hex_make_stat_planet{
+    key = "ganymede",
+    name = "Ganymede",
+    hand_key = "Flush",
+    stats = { "mult" },
+    op = "mult",
+    factor = 1.75,
+    atlas = "HexPlanets",
+    pos = { x = 8, y = 0 },
+    text = {
+        "Upgrades {C:attention}Flush{}",
+        "{C:mult}Mult{} by {C:mult}X1.75{}",
+    },
+    status_message = "X1.75 Mult",
+}
+
+hex_make_stat_planet{
+    key = "callisto",
+    name = "Callisto",
+    hand_key = "Flush",
+    stats = { "chips", "mult" },
+    op = "mult",
+    factor = 1.5,
+    atlas = "HexPlanets",
+    pos = { x = 9, y = 0 },
+    text = {
+        "Upgrades {C:attention}Flush{}",
+        "{C:chips}Chips{} and {C:mult}Mult{}",
+        "by {C:attention}X1.5{}",
+    },
+    status_message = "X1.5 Chips/Mult",
+}
+
+hex_make_stat_planet{
+    key = "amalthea",
+    name = "Amalthea",
+    hand_key = "Flush",
+    stats = { "chips", "mult" },
+    op = "pow",
+    factor = 1.1,
+    atlas = "HexPlanets",
+    pos = { x = 0, y = 1 },
+    text = {
+        "Upgrades {C:attention}Flush{}",
+        "{C:chips}Chips{} and {C:mult}Mult{}",
+        "by {C:attention}^1.1{}",
+    },
+    status_message = "^1.1 Chips/Mult",
+}
+
+
+-- ---- Straight ----
+
+hex_make_level_planet{
+    key = "mimas",
+    name = "Mimas",
+    hand_key = "Straight",
+    levels = 2,
+    atlas = "HexPlanets",
+    pos = { x = 1, y = 1 },
+    text = {
+        "Upgrades {C:attention}Straight{}",
+        "by {C:attention}2{} levels",
+    },
+}
+
+hex_make_stat_planet{
+    key = "enceladus",
+    name = "Enceladus",
+    hand_key = "Straight",
+    stats = { "chips" },
+    op = "mult",
+    factor = 1.75,
+    atlas = "HexPlanets",
+    pos = { x = 2, y = 1 },
+    text = {
+        "Upgrades {C:attention}Straight{}",
+        "{C:chips}Chips{} by {C:chips}X1.75{}",
+    },
+    status_message = "X1.75 Chips",
+}
+
+hex_make_stat_planet{
+    key = "tethys",
+    name = "Tethys",
+    hand_key = "Straight",
+    stats = { "mult" },
+    op = "mult",
+    factor = 1.75,
+    atlas = "HexPlanets",
+    pos = { x = 3, y = 1 },
+    text = {
+        "Upgrades {C:attention}Straight{}",
+        "{C:mult}Mult{} by {C:mult}X1.75{}",
+    },
+    status_message = "X1.75 Mult",
+}
+
+hex_make_stat_planet{
+    key = "dione",
+    name = "Dione",
+    hand_key = "Straight",
+    stats = { "chips", "mult" },
+    op = "mult",
+    factor = 1.5,
+    atlas = "HexPlanets",
+    pos = { x = 4, y = 1 },
+    text = {
+        "Upgrades {C:attention}Straight{}",
+        "{C:chips}Chips{} and {C:mult}Mult{}",
+        "by {C:attention}X1.5{}",
+    },
+    status_message = "X1.5 Chips/Mult",
+}
+
+hex_make_stat_planet{
+    key = "rhea",
+    name = "Rhea",
+    hand_key = "Straight",
+    stats = { "chips", "mult" },
+    op = "pow",
+    factor = 1.1,
+    atlas = "HexPlanets",
+    pos = { x = 5, y = 1 },
+    text = {
+        "Upgrades {C:attention}Straight{}",
+        "{C:chips}Chips{} and {C:mult}Mult{}",
+        "by {C:attention}^1.1{}",
+    },
+    status_message = "^1.1 Chips/Mult",
+}
+
+hex_make_stat_planet{
+    key = "titan",
+    name = "Titan",
+    hand_key = "Straight",
+    stats = { "mult" },
+    op = "mult",
+    factor = 2,
+    atlas = "HexPlanets",
+    pos = { x = 6, y = 1 },
+    text = {
+        "Upgrades {C:attention}Straight{}",
+        "{C:mult}Mult{} by {C:mult}X2{}",
+    },
+    status_message = "X2 Mult",
+}
+
+hex_make_stat_planet{
+    key = "iapetus",
+    name = "Iapetus",
+    hand_key = "Straight",
+    stats = { "chips" },
+    op = "mult",
+    factor = 2,
+    atlas = "HexPlanets",
+    pos = { x = 7, y = 1 },
+    text = {
+        "Upgrades {C:attention}Straight{}",
+        "{C:chips}Chips{} by {C:chips}X2{}",
+    },
+    status_message = "X2 Chips",
+}
+
+
+-- ---- Two Pair ----
+
+hex_make_level_planet{
+    key = "ariel",
+    name = "Ariel",
+    hand_key = "Two Pair",
+    levels = 2,
+    atlas = "HexPlanets",
+    pos = { x = 8, y = 1 },
+    text = {
+        "Upgrades {C:attention}Two Pair{}",
+        "by {C:attention}2{} levels",
+    },
+}
+
+hex_make_stat_planet{
+    key = "umbriel",
+    name = "Umbriel",
+    hand_key = "Two Pair",
+    stats = { "mult" },
+    op = "mult",
+    factor = 1.75,
+    atlas = "HexPlanets",
+    pos = { x = 9, y = 1 },
+    text = {
+        "Upgrades {C:attention}Two Pair{}",
+        "{C:mult}Mult{} by {C:mult}X1.75{}",
+    },
+    status_message = "X1.75 Mult",
+}
+
+hex_make_stat_planet{
+    key = "titania",
+    name = "Titania",
+    hand_key = "Two Pair",
+    stats = { "chips" },
+    op = "mult",
+    factor = 1.75,
+    atlas = "HexPlanets",
+    pos = { x = 0, y = 2 },
+    text = {
+        "Upgrades {C:attention}Two Pair{}",
+        "{C:chips}Chips{} by {C:chips}X1.75{}",
+    },
+    status_message = "X1.75 Chips",
+}
+
+hex_make_stat_planet{
+    key = "oberon",
+    name = "Oberon",
+    hand_key = "Two Pair",
+    stats = { "chips", "mult" },
+    op = "mult",
+    factor = 1.5,
+    atlas = "HexPlanets",
+    pos = { x = 1, y = 2 },
+    text = {
+        "Upgrades {C:attention}Two Pair{}",
+        "{C:chips}Chips{} and {C:mult}Mult{}",
+        "by {C:attention}X1.5{}",
+    },
+    status_message = "X1.5 Chips/Mult",
+}
+
+hex_make_stat_planet{
+    key = "miranda",
+    name = "Miranda",
+    hand_key = "Two Pair",
+    stats = { "chips", "mult" },
+    op = "pow",
+    factor = 1.1,
+    atlas = "HexPlanets",
+    pos = { x = 2, y = 2 },
+    text = {
+        "Upgrades {C:attention}Two Pair{}",
+        "{C:chips}Chips{} and {C:mult}Mult{}",
+        "by {C:attention}^1.1{}",
+    },
+    status_message = "^1.1 Chips/Mult",
+}
+
+
+-- ---- Straight Flush ----
+
+hex_make_level_planet{
+    key = "triton",
+    name = "Triton",
+    hand_key = "Straight Flush",
+    levels = 2,
+    atlas = "HexPlanets",
+    pos = { x = 3, y = 2 },
+    text = {
+        "Upgrades {C:attention}Straight Flush{}",
+        "by {C:attention}2{} levels",
+    },
+}
+
+hex_make_stat_planet{
+    key = "nereid",
+    name = "Nereid",
+    hand_key = "Straight Flush",
+    stats = { "chips" },
+    op = "mult",
+    factor = 1.75,
+    atlas = "HexPlanets",
+    pos = { x = 4, y = 2 },
+    text = {
+        "Upgrades {C:attention}Straight Flush{}",
+        "{C:chips}Chips{} by {C:chips}X1.75{}",
+    },
+    status_message = "X1.75 Chips",
+}
+
+hex_make_stat_planet{
+    key = "naiad",
+    name = "Naiad",
+    hand_key = "Straight Flush",
+    stats = { "mult" },
+    op = "mult",
+    factor = 1.75,
+    atlas = "HexPlanets",
+    pos = { x = 5, y = 2 },
+    text = {
+        "Upgrades {C:attention}Straight Flush{}",
+        "{C:mult}Mult{} by {C:mult}X1.75{}",
+    },
+    status_message = "X1.75 Mult",
+}
+
+hex_make_stat_planet{
+    key = "thalassa",
+    name = "Thalassa",
+    hand_key = "Straight Flush",
+    stats = { "chips", "mult" },
+    op = "mult",
+    factor = 1.5,
+    atlas = "HexPlanets",
+    pos = { x = 6, y = 2 },
+    text = {
+        "Upgrades {C:attention}Straight Flush{}",
+        "{C:chips}Chips{} and {C:mult}Mult{}",
+        "by {C:attention}X1.5{}",
+    },
+    status_message = "X1.5 Chips/Mult",
+}
+
+hex_make_stat_planet{
+    key = "despina",
+    name = "Despina",
+    hand_key = "Straight Flush",
+    stats = { "chips", "mult" },
+    op = "pow",
+    factor = 1.1,
+    atlas = "HexPlanets",
+    pos = { x = 7, y = 2 },
+    text = {
+        "Upgrades {C:attention}Straight Flush{}",
+        "{C:chips}Chips{} and {C:mult}Mult{}",
+        "by {C:attention}^1.1{}",
+    },
+    status_message = "^1.1 Chips/Mult",
+}
+
+
+-- ---- High Card ----
+
+hex_make_stat_planet{
+    key = "charon",
+    name = "Charon",
+    hand_key = "High Card",
+    stats = { "mult" },
+    op = "mult",
+    factor = 1.75,
+    atlas = "HexPlanets",
+    pos = { x = 8, y = 2 },
+    text = {
+        "Upgrades {C:attention}High Card{}",
+        "{C:mult}Mult{} by {C:mult}X1.75{}",
+    },
+    status_message = "X1.75 Mult",
+}
+
+hex_make_stat_planet{
+    key = "nix",
+    name = "Nix",
+    hand_key = "High Card",
+    stats = { "chips" },
+    op = "mult",
+    factor = 1.75,
+    atlas = "HexPlanets",
+    pos = { x = 9, y = 2 },
+    text = {
+        "Upgrades {C:attention}High Card{}",
+        "{C:chips}Chips{} by {C:chips}X1.75{}",
+    },
+    status_message = "X1.75 Chips",
+}
+
+hex_make_level_planet{
+    key = "hydra",
+    name = "Hydra",
+    hand_key = "High Card",
+    levels = 2,
+    atlas = "HexPlanets",
+    pos = { x = 0, y = 3 },
+    text = {
+        "Upgrades {C:attention}High Card{}",
+        "by {C:attention}2{} levels",
+    },
+}
+
+hex_make_stat_planet{
+    key = "kerberos",
+    name = "Kerberos",
+    hand_key = "High Card",
+    stats = { "chips", "mult" },
+    op = "mult",
+    factor = 1.5,
+    atlas = "HexPlanets",
+    pos = { x = 1, y = 3 },
+    text = {
+        "Upgrades {C:attention}High Card{}",
+        "{C:chips}Chips{} and {C:mult}Mult{}",
+        "by {C:attention}X1.5{}",
+    },
+    status_message = "X1.5 Chips/Mult",
+}
+
+hex_make_stat_planet{
+    key = "styx",
+    name = "Styx",
+    hand_key = "High Card",
+    stats = { "chips", "mult" },
+    op = "pow",
+    factor = 1.1,
+    atlas = "HexPlanets",
+    pos = { x = 2, y = 3 },
+    text = {
+        "Upgrades {C:attention}High Card{}",
+        "{C:chips}Chips{} and {C:mult}Mult{}",
+        "by {C:attention}^1.1{}",
+    },
+    status_message = "^1.1 Chips/Mult",
+}
+
+
+-- ---- Flush Five ----
+
+hex_make_stat_planet{
+    key = "orcus",
+    name = "Orcus",
+    hand_key = "Flush Five",
+    stats = { "chips" },
+    op = "mult",
+    factor = 1.75,
+    atlas = "HexPlanets",
+    pos = { x = 3, y = 3 },
+    in_pool = hex_hand_played_check("Flush Five"),
+    text = {
+        "Upgrades {C:attention}Flush Five{}",
+        "{C:chips}Chips{} by {C:chips}X1.75{}",
+    },
+    status_message = "X1.75 Chips",
+}
+
+hex_make_stat_planet{
+    key = "haumea",
+    name = "Haumea",
+    hand_key = "Flush Five",
+    stats = { "mult" },
+    op = "mult",
+    factor = 1.75,
+    atlas = "HexPlanets",
+    pos = { x = 4, y = 3 },
+    in_pool = hex_hand_played_check("Flush Five"),
+    text = {
+        "Upgrades {C:attention}Flush Five{}",
+        "{C:mult}Mult{} by {C:mult}X1.75{}",
+    },
+    status_message = "X1.75 Mult",
+}
+
+hex_make_level_planet{
+    key = "dysnomia",
+    name = "Dysnomia",
+    hand_key = "Flush Five",
+    levels = 2,
+    atlas = "HexPlanets",
+    pos = { x = 5, y = 3 },
+    in_pool = hex_hand_played_check("Flush Five"),
+    text = {
+        "Upgrades {C:attention}Flush Five{}",
+        "by {C:attention}2{} levels",
+    },
+}
+
+
+-- ---- Custom hex hands (only appear once played) ----
+
+hex_make_level_planet{
+    key = "quaoar",
+    name = "Quaoar",
+    hand_key = mod.prefix .. "_dual_three_of_a_kind",
+    levels = 2,
+    atlas = "HexPlanets",
+    pos = { x = 6, y = 3 },
+    in_pool = hex_hand_played_check(mod.prefix .. "_dual_three_of_a_kind"),
+    text = {
+        "Upgrades {C:attention}Dual Three",
+        "of a Kind{} by {C:attention}2{} levels",
+    },
+}
+
+hex_make_level_planet{
+    key = "makemake",
+    name = "Makemake",
+    hand_key = mod.prefix .. "_flush_dual_three_of_a_kind",
+    levels = 2,
+    atlas = "HexPlanets",
+    pos = { x = 7, y = 3 },
+    in_pool = hex_hand_played_check(mod.prefix .. "_flush_dual_three_of_a_kind"),
+    text = {
+        "Upgrades {C:attention}Flush Dual Three",
+        "of a Kind{} by {C:attention}2{} levels",
+    },
+}
+
+hex_make_level_planet{
+    key = "gonggong",
+    name = "Gonggong",
+    hand_key = mod.prefix .. "_grand_house",
+    levels = 2,
+    atlas = "HexPlanets",
+    pos = { x = 8, y = 3 },
+    in_pool = hex_hand_played_check(mod.prefix .. "_grand_house"),
+    text = {
+        "Upgrades {C:attention}Grand House{}",
+        "by {C:attention}2{} levels",
+    },
+}
+
+hex_make_level_planet{
+    key = "sedna",
+    name = "Sedna",
+    hand_key = mod.prefix .. "_flush_grand_house",
+    levels = 2,
+    atlas = "HexPlanets",
+    pos = { x = 9, y = 3 },
+    in_pool = hex_hand_played_check(mod.prefix .. "_flush_grand_house"),
+    text = {
+        "Upgrades {C:attention}Flush Grand House{}",
+        "by {C:attention}2{} levels",
+    },
+}
+
+hex_make_level_planet{
+    key = "comet_shoemaker_levy_9",
+    name = "Comet Shoemaker-Levy 9",
+    hand_key = mod.prefix .. "_three_pair",
+    levels = 2,
+    atlas = "HexPlanets",
+    pos = { x = 1, y = 4 },
+    in_pool = hex_hand_played_check(mod.prefix .. "_three_pair"),
+    text = {
+        "Upgrades {C:attention}Three Pair{}",
+        "by {C:attention}2{} levels",
+    },
+}
+
+hex_make_level_planet{
+    key = "hale_bopp_comet",
+    name = "Hale-Bopp Comet",
+    hand_key = mod.prefix .. "_four_pair",
+    levels = 2,
+    atlas = "HexPlanets",
+    pos = { x = 2, y = 4 },
+    in_pool = hex_hand_played_check(mod.prefix .. "_four_pair"),
+    text = {
+        "Upgrades {C:attention}Four Pair{}",
+        "by {C:attention}2{} levels",
+    },
+}
+
+hex_make_level_planet{
+    key = "oumuamua",
+    name = "Oumuamua",
+    hand_key = mod.prefix .. "_flush_three_pair",
+    levels = 2,
+    atlas = "HexPlanets",
+    pos = { x = 3, y = 4 },
+    in_pool = hex_hand_played_check(mod.prefix .. "_flush_three_pair"),
+    text = {
+        "Upgrades {C:attention}Flush Three Pair{}",
+        "by {C:attention}2{} levels",
+    },
+}
+
+hex_make_level_planet{
+    key = "comet_lovejoy",
+    name = "Comet Lovejoy",
+    hand_key = mod.prefix .. "_flush_four_pair",
+    levels = 2,
+    atlas = "HexPlanets",
+    pos = { x = 4, y = 4 },
+    in_pool = hex_hand_played_check(mod.prefix .. "_flush_four_pair"),
+    text = {
+        "Upgrades {C:attention}Flush Four Pair{}",
+        "by {C:attention}2{} levels",
+    },
+}
+
+hex_make_level_planet{
+    key = "bennu",
+    name = "Bennu",
+    hand_key = mod.prefix .. "_n_of_a_kind",
+    levels = 2,
+    atlas = "HexPlanets",
+    pos = { x = 5, y = 4 },
+    in_pool = hex_hand_played_check(mod.prefix .. "_n_of_a_kind"),
+    text = {
+        "Upgrades {C:attention}N of a Kind{}",
+        "by {C:attention}2{} levels",
+    },
+}
+
+hex_make_level_planet{
+    key = "arrokoth",
+    name = "Arrokoth",
+    hand_key = mod.prefix .. "_flush_n",
+    levels = 2,
+    atlas = "HexPlanets",
+    pos = { x = 6, y = 4 },
+    in_pool = hex_hand_played_check(mod.prefix .. "_flush_n"),
+    text = {
+        "Upgrades {C:attention}Flush N{}",
+        "by {C:attention}2{} levels",
+    },
+}
+
+
+-- ---- None ----
+-- Not multiplicative like the others -- a flat +1/+1 bump straight onto
+-- G.GAME.hands[key].chips/.mult, wrapped in to_big()/big() the same way
+-- the rest of the file wraps Amulet-scaled fields.
+SMODS.Consumable{
+    key = "halleys_comet",
+    set = "Planet",
+
+    atlas = "HexPlanets",
+    pos = { x = 0, y = 4 },
+
+    unlocked = true,
+    discovered = true,
+
+    in_pool = function(self) return true end,
+
+    loc_txt = {
+        name = "Halley's Comet",
+        text = {
+            "Upgrades {C:attention}None{}",
+            "by {C:chips}+1{} Chips and",
+            "{C:mult}+1{} Mult",
+        },
+    },
+
+    can_use = function(self, card)
+        return true
+    end,
+
+    use = function(self, card)
+        local hand_key = mod.prefix .. "_none"
+        local hand = G.GAME and G.GAME.hands and G.GAME.hands[hand_key]
+
+        if hand then
+            hand.chips = to_big(hand.chips or 0) + big(1)
+            hand.mult = to_big(hand.mult or 0) + big(1)
+        end
+
+        card_eval_status_text(card, "extra", nil, nil, nil, {
+            message = "+1 Chips/Mult",
+            colour = G.C.STAR
+        })
+    end,
+}
+
+
+
+
+
+
+
+
+SMODS.Enhancement{
+    key = "bronze",
+    loc_txt = {
+        name = "Bronze Card",
+        text = {
+            "Gives {C:chips}X2{} Chips",
+            "when held in hand",
+        }
+    },
+    atlas = "HexEnhancers",
+    pos = { x = 6, y = 0 },
+    unlocked = true,
+    discovered = true,
+    weight = 1,
+    in_pool = function(self) return true end,
+
+    calculate = function(self, card, context)
+        if context.main_scoring and context.cardarea == G.hand then
+            return {
+                x_chips = 2,
+                colour = G.C.CHIPS,
+                card = card,
+            }
+        end
+    end,
+}
+
+SMODS.Enhancement{
+    key = "crystal",
+    loc_txt = {
+        name = "Crystal Card",
+        text = {
+            "{C:green}1 in 2{} chance to give",
+            "{C:chips}^1.75{} Chips and",
+            "{C:mult}^1.75{} Mult",
+            "when scored",
+        }
+    },
+    atlas = "HexEnhancers",
+    pos = { x = 5, y = 1 },
+    unlocked = true,
+    discovered = true,
+    weight = 0,
+    in_pool = function(self) return true end,
+
+    calculate = function(self, card, context)
+        if context.main_scoring and context.cardarea == G.play then
+            if pseudorandom(pseudoseed(mod.prefix .. "_crystal_" .. tostring(card.sort_id or card))) < 0.5 then
+                return {
+                    e_chips = 1.75,
+                    e_mult = 1.75,
+                    colour = G.C.BLUE,
+                    card = card,
+                }
+            end
+        end
+    end,
+}
+
+SMODS.Enhancement{
+    key = "platinum",
+    loc_txt = {
+        name = "Platinum Card",
+        text = {
+            "Gives {C:chips}^^1.25{} Chips and",
+            "{C:mult}^^1.25{} Mult when scored",
+            "{C:inactive}(Destroyed after the hand is played){}",
+        }
+    },
+    atlas = "HexEnhancers",
+    pos = { x = 1, y = 0 },
+    unlocked = true,
+    discovered = true,
+    weight = 0,
+    in_pool = function(self) return true end,
+
+    calculate = function(self, card, context)
+        -- Applies the tetration bonus when this card is scored -- same
+        -- timing as before.
+        if context.main_scoring and context.cardarea == G.play then
+            return {
+                ee_chips = 1.25,
+                ee_mult = 1.25,
+                colour = G.C.PURPLE,
+                card = card,
+                message = "Platinum!",
+            }
+        end
+
+        -- Card Destruction Stage: this fires once per card, AFTER the
+        -- entire hand has been scored (same stage vanilla Glass Card
+        -- uses for its own break chance) -- context.destroying_card is
+        -- only set if this particular card actually scored, so a
+        -- Platinum card that was played but didn't score (e.g. not part
+        -- of the winning poker hand, no Splash Joker) survives.
+        if context.destroy_card
+        and context.cardarea == G.play
+        and context.destroying_card then
+            return {
+                remove = true
+            }
+        end
+    end,
+}
+
+
+SMODS.Enhancement{
+    key = "ruby",
+
+    loc_txt = {
+        name = "Ruby Card",
+        text = {
+            "Gives {C:mult}^#1#{} Mult",
+            "when scored",
+            "Gains {C:attention}+1{} power",
+            "every time this card is played",
+        }
+    },
+
+    atlas = "HexEnhancers",
+    pos = { x = 3, y = 1 },
+
+    unlocked = true,
+    discovered = true,
+    weight = 0,
+
+    in_pool = function(self) return true end,
+
+    config = { extra = { power = 1 } },
+
+    loc_vars = function(self, info_queue, card)
+        return { vars = { (card.ability.extra and card.ability.extra.power) or 1 } }
+    end,
+
+    calculate = function(self, card, context)
+        -- Fires exactly once per card, before scoring begins -- resets
+        -- the "already grew power this hand" flag so this specific
+        -- card's power only ever grows once per play, no matter how
+        -- many retriggers it gets, and no matter how many other cards
+        -- are in the played hand.
+        if context.before and context.cardarea == G.play then
+            card.hex_ruby_grown_this_hand = false
+        end
+
+        if context.main_scoring and context.cardarea == G.play then
+            if not card.hex_ruby_grown_this_hand then
+                card.ability.extra.power = (card.ability.extra.power or 1) + 1
+                card.hex_ruby_grown_this_hand = true
+            end
+
+            return {
+                e_mult = card.ability.extra.power,
+                colour = G.C.RED,
+                card = card,
+            }
+        end
+    end,
+}
+
+SMODS.Enhancement{
+    key = "sapphire",
+
+    loc_txt = {
+        name = "Sapphire Card",
+        text = {
+            "Gives {C:chips}^#1#{} Chips",
+            "when scored",
+            "Gains {C:attention}+1{} power",
+            "every time this card is played",
+        }
+    },
+
+    atlas = "HexEnhancers",
+    pos = { x = 1, y = 1 },
+
+    unlocked = true,
+    discovered = true,
+    weight = 0,
+
+    in_pool = function(self) return true end,
+
+    config = { extra = { power = 1 } },
+
+    loc_vars = function(self, info_queue, card)
+        return { vars = { (card.ability.extra and card.ability.extra.power) or 1 } }
+    end,
+
+    calculate = function(self, card, context)
+        if context.before and context.cardarea == G.play then
+            card.hex_sapphire_grown_this_hand = false
+        end
+
+        if context.main_scoring and context.cardarea == G.play then
+            if not card.hex_sapphire_grown_this_hand then
+                card.ability.extra.power = (card.ability.extra.power or 1) + 1
+                card.hex_sapphire_grown_this_hand = true
+            end
+
+            return {
+                e_chips = card.ability.extra.power,
+                colour = G.C.BLUE,
+                card = card,
+            }
+        end
+    end,
+}
+
+SMODS.Enhancement{
+    key = "topaz",
+
+    loc_txt = {
+        name = "Topaz Card",
+        text = {
+            "Gives {C:money}+$#1#{}",
+            "when triggered",
+            "Gains {C:attention}+1{} power",
+            "every time this card is played",
+        }
+    },
+
+    atlas = "HexEnhancers",
+    pos = { x = 2, y = 1 },
+
+    unlocked = true,
+    discovered = true,
+    weight = 0,
+
+    in_pool = function(self) return true end,
+
+    config = { extra = { power = 1 } },
+
+    loc_vars = function(self, info_queue, card)
+        return { vars = { (card.ability.extra and card.ability.extra.power) or 1 } }
+    end,
+
+    calculate = function(self, card, context)
+        if context.before and context.cardarea == G.play then
+            card.hex_topaz_grown_this_hand = false
+        end
+
+        if context.main_scoring and context.cardarea == G.play then
+            if not card.hex_topaz_grown_this_hand then
+                card.ability.extra.power = (card.ability.extra.power or 1) + 1
+                card.hex_topaz_grown_this_hand = true
+            end
+
+            return {
+                dollars = card.ability.extra.power,
+                colour = G.C.MONEY,
+                card = card,
+            }
+        end
+    end,
+}
+
+-- Counts every playing card in the whole deck (hand/deck-pile/discard/
+-- play, anywhere -- using G.playing_cards, the same master registry the
+-- Manifest ritual registers newly-created cards into elsewhere in this
+-- file) that currently carries the Diamond enhancement.
+local function hex_count_diamond_cards()
+    if not G.playing_cards then return 0 end
+
+    local count = 0
+    for _, c in ipairs(G.playing_cards) do
+        if c.ability
+        and c.ability.set == "Enhanced"
+        and c.config
+        and c.config.center
+        and c.config.center.key == "m_" .. mod.prefix .. "_diamond" then
+            count = count + 1
+        end
+    end
+
+    return count
+end
+
+-- height = 1 + 0.5 * count, so 1 Diamond card in the deck (count = 1)
+-- gives height 1.5, 2 gives 2.0, and so on.
+local function hex_diamond_height()
+    return 1 + 0.5 * hex_count_diamond_cards()
+end
+
+SMODS.Enhancement{
+    key = "diamond",
+
+    loc_txt = {
+        name = "Diamond Card",
+        text = {
+            "Gives {C:chips}^#1#{} Chips and",
+            "{C:mult}^#1#{} Mult when scored",
+            "{C:inactive}(+0.5 height per Diamond{}",
+            "{C:inactive}card in your deck){}",
+        }
+    },
+
+    atlas = "HexEnhancers",
+    pos = { x = 5, y = 0 },
+
+    unlocked = true,
+    discovered = true,
+    weight = 0,
+
+    in_pool = function(self) return true end,
+
+    loc_vars = function(self, info_queue, card)
+        return { vars = { string.format("%.1f", hex_diamond_height()) } }
+    end,
+
+    calculate = function(self, card, context)
+        if context.main_scoring and context.cardarea == G.play then
+            local height = hex_diamond_height()
+
+            return {
+                ee_chips = height,
+                ee_mult = height,
+                colour = G.C.BLUE,
+                card = card,
+            }
+        end
+    end,
+}
+
 
 
 
@@ -961,18 +2256,11 @@ SMODS.Edition{
         return true
     end,
 
-    -- Raises the running Mult to the power of 1.25 whenever the card
-    -- carrying this edition (Joker or playing card) scores.
     calculate = function(self, card, context)
         if (context.edition and context.cardarea == G.jokers and card.config.trigger)
         or (context.main_scoring and context.cardarea == G.play) then
             return {
-                func = function()
-                    if mult == nil then return end
-                    mult = to_big(mult):arrow(1, 1.25)
-                    update_hand_text({delay = 0}, {mult = mult})
-                end,
-                message = "^1.25",
+                e_mult = 1.25,
                 colour = G.C.PURPLE
             }
         end
@@ -1016,7 +2304,6 @@ SMODS.Edition{
         or (context.main_scoring and context.cardarea == G.play) then
             return {
                 x_chips = 2,
-                message = "X2",
                 colour = G.C.BLUE
             }
         end
@@ -1061,7 +2348,6 @@ SMODS.Edition{
         or (context.main_scoring and context.cardarea == G.play) then
             return {
                 e_chips = 1.5,
-                message = "^1.5",
                 colour = G.C.BLUE
             }
         end
@@ -1155,7 +2441,6 @@ SMODS.Edition{
             return {
                 eee_chips = 1.1,
                 eee_mult = 1.1,
-                message = "^^^1.1",
                 colour = G.C.HEX_EMPOWERED
             }
         end
@@ -1228,7 +2513,7 @@ SMODS.Seal{
     },
 
     atlas = "HexEnhancers",
-    pos = { x = 4, y = 4 },
+    pos = { x = 3, y = 4 },
 
     badge_colour = G.C.HEX_GREEN_SEAL,
 
@@ -1355,7 +2640,7 @@ SMODS.Seal{
     },
 
     atlas = "HexEnhancers",
-    pos = { x = 3, y = 4 },
+    pos = { x = 4, y = 4 },
 
     badge_colour = G.C.HEX_BLACK_SEAL,
 
@@ -1801,8 +3086,6 @@ SMODS.Voucher{
 
 
 
-
-
 SMODS.Back{
     key = "infinite_joker_deck",
 
@@ -1833,7 +3116,7 @@ SMODS.Back{
         name = "Negative Deck",
         text = {
             "{C:attention}Negative{} Jokers appear",
-            "{C:attention}10 times{} more often"
+            "{C:attention}50 times{} more often"
         }
     },
 
@@ -1842,9 +3125,97 @@ SMODS.Back{
     unlocked = true,
     discovered = true,
 
-    pos = { x = 0, y = 2 }, -- next open frame in the atlas, right next to Infinite Deck
+    pos = { x = 0, y = 2 }, 
 
     atlas = "HexEnhancers",
+}
+
+
+SMODS.Back({
+    key = "gold_deck",
+    loc_txt = {
+        name = "Gold Deck",
+        text = {
+            "Start with {C:money}$1000{}"
+        }
+    },
+
+    config = { dollars = 996 },
+
+    unlocked = true,
+    discovered = true,
+
+    pos = { x = 1, y = 4 },
+
+    atlas = "HexEnhancers",
+
+    set_deck = function(self, card, the_deck)
+        if G.GAME and G.GAME.dollars then
+            G.GAME.dollars = 996
+        end
+    end
+})
+
+
+ 
+SMODS.Back{
+    key = "overstock_deck",
+
+    loc_txt = {
+        name = "Overstock Deck",
+        text = {
+            "Start with {C:attention}Overstock{},",
+            "{C:attention}Overstock Plus{}, and",
+            "{C:attention}Overstock Plus Plus{}"
+        }
+    },
+
+    atlas = "HexEnhancers",
+    pos = {x = 1, y = 4},
+
+    unlocked = true,
+    discovered = true,
+
+    config = {
+        start_vouchers = {
+            "v_overstock_norm",
+            "v_overstock_plus",
+            "v_hex_overstock_plus_plus"
+        }
+    },
+
+    apply = function(self, back)
+        G.E_MANAGER:add_event(Event({
+            trigger = "after",
+            delay = 0.1,
+            func = function()
+                G.GAME.shop.joker_max = (G.GAME.shop.joker_max or 0) + 2
+
+                G.GAME.used_vouchers = G.GAME.used_vouchers or {}
+
+                for _, key in ipairs({
+                    "v_overstock_norm",
+                    "v_overstock_plus",
+                    "v_hex_overstock_plus_plus"
+                }) do
+                    local voucher = G.P_CENTERS[key]
+
+                    if voucher then
+                        G.GAME.used_vouchers[key] = true
+
+                        if voucher.redeem then
+                            voucher:redeem()
+                        end
+                    else
+                        print("Missing voucher:", key)
+                    end
+                end
+
+                return true
+            end
+        }))
+    end,
+
 }
 
 -- Key of our custom Back, used below to check which deck is currently
@@ -1856,8 +3227,8 @@ local HEX_NEGATIVE_DECK_KEY = "b_" .. mod.prefix .. "_negative_deck"
 -- Vanilla's own baseline chance of a shop/generated Joker rolling the
 -- Negative edition is roughly 0.3% (0.003). We want Negative Jokers to
 -- show up 10x as often while this deck is selected, so the extra,
--- independent roll below checks against 10x that baseline (0.03 / 3%).
-local HEX_NEGATIVE_DECK_RATE = 0.03
+-- independent roll below checks against 50x that baseline (0.15 / 15%).
+local HEX_NEGATIVE_DECK_RATE = 0.15
 
 -- Altair: rather than a flat boosted rate like Negative Deck above,
 -- Altair keeps a persistent, stacking multiplier on G.GAME
@@ -2950,43 +4321,15 @@ local HEX_PERKEO_BLOCKED_SETS = {
     star = true,
     galaxy = true,
 }
-
 local hex_old_calculate_joker = Card.calculate_joker
 
 function Card:calculate_joker(context)
     if self.ability and self.ability.name == 'Perkeo' then
-        if context.end_of_round and context.main_eval then
-            if G.consumeables.cards[1] then
-
-                -- Build the eligible pool, excluding Ritual/Star-set
-                -- cards. Rituals and Stars set ConsumableType = "ritual" /
-                -- "star" respectively (see the SMODS.ConsumableType{...}
-                -- registrations further down this file), so this is a
-                -- simple set check against each consumable's own center.
-                local eligible = {}
-                for _, c in ipairs(G.consumeables.cards) do
-                    local blocked = c.ability
-                        and HEX_PERKEO_BLOCKED_SETS[c.ability.set]
-                    if not blocked then
-                        eligible[#eligible + 1] = c
-                    end
-                end
-
-                if eligible[1] then
-                    G.E_MANAGER:add_event(Event({
-                        func = function()
-                            local card = copy_card(pseudorandom_element(eligible, pseudoseed('perkeo')), nil)
-                            card:set_edition({negative = true}, true)
-                            card:add_to_deck()
-                            G.consumeables:emplace(card)
-                            return true
-                        end
-                    }))
-                    card_eval_status_text(context.blueprint_card or self, 'extra', nil, nil, nil, {message = localize('k_duplicated_ex')})
-                end
-            end
-            return
-        end
+        -- Vanilla's own "copy a random consumable" behaviour is fully
+        -- suppressed here -- our filtered version runs separately, on
+        -- actual shop exit, via the end_shop hook below. This branch
+        -- just has to exist so vanilla's unfiltered version never also
+        -- fires and creates a second, unfiltered copy alongside ours.
         return
     end
 
@@ -2994,6 +4337,55 @@ function Card:calculate_joker(context)
 
     return ret
 end
+
+
+-- Perkeo: fires when actually leaving the shop via the "Next Round"
+-- button. That button's config is `button = 'toggle_shop'` (see
+-- G.UIDEF.shop's next_round_button node) -- not `end_shop` -- so the
+-- hook has to be on G.FUNCS.toggle_shop specifically, or it's never
+-- invoked at all. (An earlier attempt hooked a global `end_shop` and
+-- then G.FUNCS.end_shop, neither of which is what this button actually
+-- calls in this installed build.)
+local hex_old_toggle_shop = G.FUNCS.toggle_shop
+
+G.FUNCS.toggle_shop = function(e)
+    if G.jokers and G.jokers.cards then
+        for _, j in ipairs(G.jokers.cards) do
+            if j.ability and j.ability.name == 'Perkeo' then
+                if G.consumeables and G.consumeables.cards[1] then
+
+                    -- Same eligible-pool filter as before: excludes
+                    -- Ritual/Star/Galaxy-set consumables.
+                    local eligible = {}
+                    for _, c in ipairs(G.consumeables.cards) do
+                        local blocked = c.ability
+                            and HEX_PERKEO_BLOCKED_SETS[c.ability.set]
+                        if not blocked then
+                            eligible[#eligible + 1] = c
+                        end
+                    end
+
+                    if eligible[1] then
+                        G.E_MANAGER:add_event(Event({
+                            func = function()
+                                local card = copy_card(pseudorandom_element(eligible, pseudoseed('perkeo')), nil)
+                                card:set_edition({negative = true}, true)
+                                card:add_to_deck()
+                                G.consumeables:emplace(card)
+                                return true
+                            end
+                        }))
+                        card_eval_status_text(j, 'extra', nil, nil, nil, {message = localize('k_duplicated_ex')})
+                    end
+                end
+            end
+        end
+    end
+
+    return hex_old_toggle_shop(e)
+end
+
+
 
 SMODS.Joker{
     key = "the_seal_of_aces",
@@ -3475,7 +4867,24 @@ end
 
 local old_can_play = G.FUNCS.can_play
 G.FUNCS.can_play = function(e)
-    if hex_selection_limit_raised() then
+    -- Allow playing with nothing highlighted, so the "None" hand can be
+    -- submitted -- mirrors how Cryptid implements their own None hand:
+    -- they don't touch play_cards_from_highlighted at all, they just let
+    -- the normal Play Hand button/flow fire with 0 cards. Vanilla's own
+    -- play_cards_from_highlighted -> evaluate_play chain already handles
+    -- hands_left decrementing and the state transition correctly; our
+    -- earlier attempt to bypass straight to evaluate_play skipped
+    -- whatever step does that, which is why hands_left never moved and
+    -- it only worked once.
+    if #G.hand.highlighted == 0 then
+        if G.GAME.blind and G.GAME.blind.block_play then
+            e.config.colour = G.C.UI.BACKGROUND_INACTIVE
+            e.config.button = nil
+        else
+            e.config.colour = G.C.BLUE
+            e.config.button = "play_cards_from_highlighted"
+        end
+    elseif hex_selection_limit_raised() then
         if #G.hand.highlighted <= 0 or (G.GAME.blind and G.GAME.blind.block_play) then
             e.config.colour = G.C.UI.BACKGROUND_INACTIVE
             e.config.button = nil
@@ -3753,7 +5162,7 @@ SMODS.Consumable{
     key = "heart",
     set = "Spectral",
 
-    atlas = "HexPlanetsSpectrals",
+    atlas = "HexSpectrals",
     pos = {x = 2, y = 2},
     soul_pos = {x = 6, y = 5 },
     unlocked = true,
@@ -6353,10 +7762,9 @@ end
 -- we always call SMODS.set_scoring_calculation with the exact key
 -- Steamodded assigned to it, instead of guessing how it gets prefixed.
 -- `to_big(chips):arrow(n, mult)` is Amulet's OmegaNum hyperoperator:
---   arrow(1, b) = a * b            (ordinary multiply)
---   arrow(2, b) = a ^ b            (exponentiation)
---   arrow(3, b) = a ^^ b           (tetration)
---   arrow(4, b) = a ^^^ b          (pentation)
+--   arrow(1, b) = a ^ b            (exponentiation)
+--   arrow(2, b) = a ^^ b            (tetration)
+--   arrow(3, b) = a ^^^ b           (pentation)
 --   ...and so on, all fully OmegaNum-safe past 1.7e308.
 -- Converts a (possibly OmegaNum/big) value into a plain Lua number,
 -- best-effort. Amulet's OmegaNum cdata doesn't expose one single
