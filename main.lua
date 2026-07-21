@@ -984,6 +984,8 @@ local function hex_make_level_planet(args)
     SMODS.Consumable{
         key = args.key,
         set = "Planet",
+        weight = 0.05,
+        set_badges = args.set_badges,
 
         atlas = args.atlas,
         pos = args.pos,
@@ -1024,6 +1026,8 @@ local function hex_make_stat_planet(args)
     SMODS.Consumable{
         key = args.key,
         set = "Planet",
+        weight = 0.05,
+        set_badges = args.set_badges,
 
         atlas = args.atlas,
         pos = args.pos,
@@ -1077,6 +1081,9 @@ hex_make_level_planet{
     name = "The Moon",
     hand_key = "Full House",
     levels = 2,
+    set_badges = function(self, card, badges)
+        badges[1] = create_badge("Moon", G.C.SECONDARY_SET["Planet"], nil, 1.2)
+    end,
     atlas = "HexPlanets",
     pos = { x = 0, y = 0 }, -- placeholder art slot, adjust before shipping
     text = {
@@ -1095,6 +1102,9 @@ hex_make_stat_planet{
     stats = { "chips" },
     op = "mult",
     factor = 1.75,
+    set_badges = function(self, card, badges)
+        badges[1] = create_badge("Moon", G.C.SECONDARY_SET["Planet"], nil, 1.2)
+    end,
     atlas = "HexPlanets",
     pos = { x = 1, y = 0 },
     text = {
@@ -1111,6 +1121,9 @@ hex_make_stat_planet{
     stats = { "mult" },
     op = "mult",
     factor = 1.75,
+    set_badges = function(self, card, badges)
+        badges[1] = create_badge("Moon", G.C.SECONDARY_SET["Planet"], nil, 1.2)
+    end,
     atlas = "HexPlanets",
     pos = { x = 2, y = 0 },
     text = {
@@ -1128,8 +1141,12 @@ hex_make_level_planet{
     name = "Vesta",
     hand_key = "Flush House",
     levels = 2,
+    set_badges = function(self, card, badges)
+        badges[1] = create_badge("Asteroid", G.C.SECONDARY_SET["Planet"], nil, 1.2)
+    end,
     atlas = "HexPlanets",
     pos = { x = 3, y = 0 },
+    in_pool = hex_hand_played_check("Flush House"),
     text = {
         "Upgrades {C:attention}Flush House{}",
         "by {C:attention}2{} levels",
@@ -1144,7 +1161,11 @@ hex_make_stat_planet{
     op = "mult",
     factor = 1.75,
     atlas = "HexPlanets",
+    set_badges = function(self, card, badges)
+        badges[1] = create_badge("Asteroid", G.C.SECONDARY_SET["Planet"], nil, 1.2)
+    end,
     pos = { x = 4, y = 0 },
+    in_pool = hex_hand_played_check("Flush House"),
     text = {
         "Upgrades {C:attention}Flush House{}",
         "{C:chips}Chips{} by {C:chips}X1.75{}",
@@ -1160,7 +1181,11 @@ hex_make_stat_planet{
     op = "mult",
     factor = 1.75,
     atlas = "HexPlanets",
+    set_badges = function(self, card, badges)
+        badges[1] = create_badge("Asteroid", G.C.SECONDARY_SET["Planet"], nil, 1.2)
+    end,
     pos = { x = 5, y = 0 },
+    in_pool = hex_hand_played_check("Flush House"),
     text = {
         "Upgrades {C:attention}Flush House{}",
         "{C:mult}Mult{} by {C:mult}X1.75{}",
@@ -1177,6 +1202,9 @@ hex_make_level_planet{
     hand_key = "Flush",
     levels = 2,
     atlas = "HexPlanets",
+    set_badges = function(self, card, badges)
+        badges[1] = create_badge("Moon", G.C.SECONDARY_SET["Planet"], nil, 1.2)
+    end,
     pos = { x = 6, y = 0 },
     text = {
         "Upgrades {C:attention}Flush{}",
@@ -1192,6 +1220,9 @@ hex_make_stat_planet{
     op = "mult",
     factor = 1.75,
     atlas = "HexPlanets",
+    set_badges = function(self, card, badges)
+        badges[1] = create_badge("Moon", G.C.SECONDARY_SET["Planet"], nil, 1.2)
+    end,
     pos = { x = 7, y = 0 },
     text = {
         "Upgrades {C:attention}Flush{}",
@@ -1208,6 +1239,9 @@ hex_make_stat_planet{
     op = "mult",
     factor = 1.75,
     atlas = "HexPlanets",
+    set_badges = function(self, card, badges)
+        badges[1] = create_badge("Moon", G.C.SECONDARY_SET["Planet"], nil, 1.2)
+    end,
     pos = { x = 8, y = 0 },
     text = {
         "Upgrades {C:attention}Flush{}",
@@ -1223,6 +1257,9 @@ hex_make_stat_planet{
     stats = { "chips", "mult" },
     op = "mult",
     factor = 1.5,
+    set_badges = function(self, card, badges)
+        badges[1] = create_badge("Moon", G.C.SECONDARY_SET["Planet"], nil, 1.2)
+    end,
     atlas = "HexPlanets",
     pos = { x = 9, y = 0 },
     text = {
@@ -1241,6 +1278,9 @@ hex_make_stat_planet{
     op = "pow",
     factor = 1.1,
     atlas = "HexPlanets",
+    set_badges = function(self, card, badges)
+        badges[1] = create_badge("Moon", G.C.SECONDARY_SET["Planet"], nil, 1.2)
+    end,
     pos = { x = 0, y = 1 },
     text = {
         "Upgrades {C:attention}Flush{}",
@@ -1258,6 +1298,9 @@ hex_make_level_planet{
     name = "Mimas",
     hand_key = "Straight",
     levels = 2,
+    set_badges = function(self, card, badges)
+        badges[1] = create_badge("Moon", G.C.SECONDARY_SET["Planet"], nil, 1.2)
+    end,
     atlas = "HexPlanets",
     pos = { x = 1, y = 1 },
     text = {
@@ -1272,6 +1315,9 @@ hex_make_stat_planet{
     hand_key = "Straight",
     stats = { "chips" },
     op = "mult",
+    set_badges = function(self, card, badges)
+        badges[1] = create_badge("Moon", G.C.SECONDARY_SET["Planet"], nil, 1.2)
+    end,
     factor = 1.75,
     atlas = "HexPlanets",
     pos = { x = 2, y = 1 },
@@ -1289,6 +1335,9 @@ hex_make_stat_planet{
     stats = { "mult" },
     op = "mult",
     factor = 1.75,
+    set_badges = function(self, card, badges)
+        badges[1] = create_badge("Moon", G.C.SECONDARY_SET["Planet"], nil, 1.2)
+    end,
     atlas = "HexPlanets",
     pos = { x = 3, y = 1 },
     text = {
@@ -1304,6 +1353,9 @@ hex_make_stat_planet{
     hand_key = "Straight",
     stats = { "chips", "mult" },
     op = "mult",
+    set_badges = function(self, card, badges)
+        badges[1] = create_badge("Moon", G.C.SECONDARY_SET["Planet"], nil, 1.2)
+    end,
     factor = 1.5,
     atlas = "HexPlanets",
     pos = { x = 4, y = 1 },
@@ -1321,6 +1373,9 @@ hex_make_stat_planet{
     hand_key = "Straight",
     stats = { "chips", "mult" },
     op = "pow",
+    set_badges = function(self, card, badges)
+        badges[1] = create_badge("Moon", G.C.SECONDARY_SET["Planet"], nil, 1.2)
+    end,
     factor = 1.1,
     atlas = "HexPlanets",
     pos = { x = 5, y = 1 },
@@ -1338,6 +1393,9 @@ hex_make_stat_planet{
     hand_key = "Straight",
     stats = { "mult" },
     op = "mult",
+    set_badges = function(self, card, badges)
+        badges[1] = create_badge("Moon", G.C.SECONDARY_SET["Planet"], nil, 1.2)
+    end,
     factor = 2,
     atlas = "HexPlanets",
     pos = { x = 6, y = 1 },
@@ -1354,6 +1412,9 @@ hex_make_stat_planet{
     hand_key = "Straight",
     stats = { "chips" },
     op = "mult",
+    set_badges = function(self, card, badges)
+        badges[1] = create_badge("Moon", G.C.SECONDARY_SET["Planet"], nil, 1.2)
+    end,
     factor = 2,
     atlas = "HexPlanets",
     pos = { x = 7, y = 1 },
@@ -1372,6 +1433,9 @@ hex_make_level_planet{
     name = "Ariel",
     hand_key = "Two Pair",
     levels = 2,
+    set_badges = function(self, card, badges)
+        badges[1] = create_badge("Moon", G.C.SECONDARY_SET["Planet"], nil, 1.2)
+    end,
     atlas = "HexPlanets",
     pos = { x = 8, y = 1 },
     text = {
@@ -1386,6 +1450,9 @@ hex_make_stat_planet{
     hand_key = "Two Pair",
     stats = { "mult" },
     op = "mult",
+    set_badges = function(self, card, badges)
+        badges[1] = create_badge("Moon", G.C.SECONDARY_SET["Planet"], nil, 1.2)
+    end,
     factor = 1.75,
     atlas = "HexPlanets",
     pos = { x = 9, y = 1 },
@@ -1401,6 +1468,9 @@ hex_make_stat_planet{
     name = "Titania",
     hand_key = "Two Pair",
     stats = { "chips" },
+    set_badges = function(self, card, badges)
+        badges[1] = create_badge("Moon", G.C.SECONDARY_SET["Planet"], nil, 1.2)
+    end,
     op = "mult",
     factor = 1.75,
     atlas = "HexPlanets",
@@ -1420,6 +1490,9 @@ hex_make_stat_planet{
     op = "mult",
     factor = 1.5,
     atlas = "HexPlanets",
+    set_badges = function(self, card, badges)
+        badges[1] = create_badge("Moon", G.C.SECONDARY_SET["Planet"], nil, 1.2)
+    end,
     pos = { x = 1, y = 2 },
     text = {
         "Upgrades {C:attention}Two Pair{}",
@@ -1436,6 +1509,9 @@ hex_make_stat_planet{
     stats = { "chips", "mult" },
     op = "pow",
     factor = 1.1,
+    set_badges = function(self, card, badges)
+        badges[1] = create_badge("Moon", G.C.SECONDARY_SET["Planet"], nil, 1.2)
+    end,
     atlas = "HexPlanets",
     pos = { x = 2, y = 2 },
     text = {
@@ -1454,6 +1530,9 @@ hex_make_level_planet{
     name = "Triton",
     hand_key = "Straight Flush",
     levels = 2,
+    set_badges = function(self, card, badges)
+        badges[1] = create_badge("Moon", G.C.SECONDARY_SET["Planet"], nil, 1.2)
+    end,
     atlas = "HexPlanets",
     pos = { x = 3, y = 2 },
     text = {
@@ -1469,6 +1548,9 @@ hex_make_stat_planet{
     stats = { "chips" },
     op = "mult",
     factor = 1.75,
+    set_badges = function(self, card, badges)
+        badges[1] = create_badge("Moon", G.C.SECONDARY_SET["Planet"], nil, 1.2)
+    end,
     atlas = "HexPlanets",
     pos = { x = 4, y = 2 },
     text = {
@@ -1485,6 +1567,9 @@ hex_make_stat_planet{
     stats = { "mult" },
     op = "mult",
     factor = 1.75,
+    set_badges = function(self, card, badges)
+        badges[1] = create_badge("Moon", G.C.SECONDARY_SET["Planet"], nil, 1.2)
+    end,
     atlas = "HexPlanets",
     pos = { x = 5, y = 2 },
     text = {
@@ -1501,6 +1586,9 @@ hex_make_stat_planet{
     stats = { "chips", "mult" },
     op = "mult",
     factor = 1.5,
+    set_badges = function(self, card, badges)
+        badges[1] = create_badge("Moon", G.C.SECONDARY_SET["Planet"], nil, 1.2)
+    end,
     atlas = "HexPlanets",
     pos = { x = 6, y = 2 },
     text = {
@@ -1518,6 +1606,9 @@ hex_make_stat_planet{
     stats = { "chips", "mult" },
     op = "pow",
     factor = 1.1,
+    set_badges = function(self, card, badges)
+        badges[1] = create_badge("Moon", G.C.SECONDARY_SET["Planet"], nil, 1.2)
+    end,
     atlas = "HexPlanets",
     pos = { x = 7, y = 2 },
     text = {
@@ -1539,6 +1630,9 @@ hex_make_stat_planet{
     op = "mult",
     factor = 1.75,
     atlas = "HexPlanets",
+    set_badges = function(self, card, badges)
+        badges[1] = create_badge("Moon", G.C.SECONDARY_SET["Planet"], nil, 1.2)
+    end,
     pos = { x = 8, y = 2 },
     text = {
         "Upgrades {C:attention}High Card{}",
@@ -1554,6 +1648,9 @@ hex_make_stat_planet{
     stats = { "chips" },
     op = "mult",
     factor = 1.75,
+    set_badges = function(self, card, badges)
+        badges[1] = create_badge("Moon", G.C.SECONDARY_SET["Planet"], nil, 1.2)
+    end,
     atlas = "HexPlanets",
     pos = { x = 9, y = 2 },
     text = {
@@ -1568,6 +1665,9 @@ hex_make_level_planet{
     name = "Hydra",
     hand_key = "High Card",
     levels = 2,
+    set_badges = function(self, card, badges)
+        badges[1] = create_badge("Moon", G.C.SECONDARY_SET["Planet"], nil, 1.2)
+    end,
     atlas = "HexPlanets",
     pos = { x = 0, y = 3 },
     text = {
@@ -1583,6 +1683,9 @@ hex_make_stat_planet{
     stats = { "chips", "mult" },
     op = "mult",
     factor = 1.5,
+    set_badges = function(self, card, badges)
+        badges[1] = create_badge("Moon", G.C.SECONDARY_SET["Planet"], nil, 1.2)
+    end,
     atlas = "HexPlanets",
     pos = { x = 1, y = 3 },
     text = {
@@ -1600,6 +1703,9 @@ hex_make_stat_planet{
     stats = { "chips", "mult" },
     op = "pow",
     factor = 1.1,
+    set_badges = function(self, card, badges)
+        badges[1] = create_badge("Moon", G.C.SECONDARY_SET["Planet"], nil, 1.2)
+    end,
     atlas = "HexPlanets",
     pos = { x = 2, y = 3 },
     text = {
@@ -1620,6 +1726,9 @@ hex_make_stat_planet{
     stats = { "chips" },
     op = "mult",
     factor = 1.75,
+    set_badges = function(self, card, badges)
+        badges[1] = create_badge("Dwarf Planet", G.C.SECONDARY_SET["Planet"], nil, 1.2)
+    end,
     atlas = "HexPlanets",
     pos = { x = 3, y = 3 },
     in_pool = hex_hand_played_check("Flush Five"),
@@ -1637,6 +1746,9 @@ hex_make_stat_planet{
     stats = { "mult" },
     op = "mult",
     factor = 1.75,
+    set_badges = function(self, card, badges)
+        badges[1] = create_badge("Dwarf Planet", G.C.SECONDARY_SET["Planet"], nil, 1.2)
+    end,
     atlas = "HexPlanets",
     pos = { x = 4, y = 3 },
     in_pool = hex_hand_played_check("Flush Five"),
@@ -1652,6 +1764,9 @@ hex_make_level_planet{
     name = "Dysnomia",
     hand_key = "Flush Five",
     levels = 2,
+    set_badges = function(self, card, badges)
+        badges[1] = create_badge("Moon", G.C.SECONDARY_SET["Planet"], nil, 1.2)
+    end,
     atlas = "HexPlanets",
     pos = { x = 5, y = 3 },
     in_pool = hex_hand_played_check("Flush Five"),
@@ -1669,6 +1784,9 @@ hex_make_level_planet{
     name = "Quaoar",
     hand_key = mod.prefix .. "_dual_three_of_a_kind",
     levels = 2,
+    set_badges = function(self, card, badges)
+        badges[1] = create_badge("Dwarf Planet", G.C.SECONDARY_SET["Planet"], nil, 1.2)
+    end,
     atlas = "HexPlanets",
     pos = { x = 6, y = 3 },
     in_pool = hex_hand_played_check(mod.prefix .. "_dual_three_of_a_kind"),
@@ -1683,6 +1801,9 @@ hex_make_level_planet{
     name = "Makemake",
     hand_key = mod.prefix .. "_flush_dual_three_of_a_kind",
     levels = 2,
+    set_badges = function(self, card, badges)
+        badges[1] = create_badge("Dwarf Planet", G.C.SECONDARY_SET["Planet"], nil, 1.2)
+    end,
     atlas = "HexPlanets",
     pos = { x = 7, y = 3 },
     in_pool = hex_hand_played_check(mod.prefix .. "_flush_dual_three_of_a_kind"),
@@ -1697,6 +1818,9 @@ hex_make_level_planet{
     name = "Gonggong",
     hand_key = mod.prefix .. "_grand_house",
     levels = 2,
+    set_badges = function(self, card, badges)
+        badges[1] = create_badge("Dwarf Planet", G.C.SECONDARY_SET["Planet"], nil, 1.2)
+    end,
     atlas = "HexPlanets",
     pos = { x = 8, y = 3 },
     in_pool = hex_hand_played_check(mod.prefix .. "_grand_house"),
@@ -1711,6 +1835,9 @@ hex_make_level_planet{
     name = "Sedna",
     hand_key = mod.prefix .. "_flush_grand_house",
     levels = 2,
+    set_badges = function(self, card, badges)
+        badges[1] = create_badge("Dwarf Planet", G.C.SECONDARY_SET["Planet"], nil, 1.2)
+    end,
     atlas = "HexPlanets",
     pos = { x = 9, y = 3 },
     in_pool = hex_hand_played_check(mod.prefix .. "_flush_grand_house"),
@@ -1725,6 +1852,9 @@ hex_make_level_planet{
     name = "Comet Shoemaker-Levy 9",
     hand_key = mod.prefix .. "_three_pair",
     levels = 2,
+    set_badges = function(self, card, badges)
+        badges[1] = create_badge("Comet", G.C.SECONDARY_SET["Planet"], nil, 1.2)
+    end,
     atlas = "HexPlanets",
     pos = { x = 1, y = 4 },
     in_pool = hex_hand_played_check(mod.prefix .. "_three_pair"),
@@ -1739,6 +1869,9 @@ hex_make_level_planet{
     name = "Hale-Bopp Comet",
     hand_key = mod.prefix .. "_four_pair",
     levels = 2,
+    set_badges = function(self, card, badges)
+        badges[1] = create_badge("Comet", G.C.SECONDARY_SET["Planet"], nil, 1.2)
+    end,
     atlas = "HexPlanets",
     pos = { x = 2, y = 4 },
     in_pool = hex_hand_played_check(mod.prefix .. "_four_pair"),
@@ -1753,6 +1886,9 @@ hex_make_level_planet{
     name = "Oumuamua",
     hand_key = mod.prefix .. "_flush_three_pair",
     levels = 2,
+    set_badges = function(self, card, badges)
+        badges[1] = create_badge("Comet", G.C.SECONDARY_SET["Planet"], nil, 1.2)
+    end,
     atlas = "HexPlanets",
     pos = { x = 3, y = 4 },
     in_pool = hex_hand_played_check(mod.prefix .. "_flush_three_pair"),
@@ -1767,6 +1903,9 @@ hex_make_level_planet{
     name = "Comet Lovejoy",
     hand_key = mod.prefix .. "_flush_four_pair",
     levels = 2,
+    set_badges = function(self, card, badges)
+        badges[1] = create_badge("Comet", G.C.SECONDARY_SET["Planet"], nil, 1.2)
+    end,
     atlas = "HexPlanets",
     pos = { x = 4, y = 4 },
     in_pool = hex_hand_played_check(mod.prefix .. "_flush_four_pair"),
@@ -1781,6 +1920,9 @@ hex_make_level_planet{
     name = "Bennu",
     hand_key = mod.prefix .. "_n_of_a_kind",
     levels = 2,
+    set_badges = function(self, card, badges)
+        badges[1] = create_badge("Comet", G.C.SECONDARY_SET["Planet"], nil, 1.2)
+    end,
     atlas = "HexPlanets",
     pos = { x = 5, y = 4 },
     in_pool = hex_hand_played_check(mod.prefix .. "_n_of_a_kind"),
@@ -1795,6 +1937,9 @@ hex_make_level_planet{
     name = "Arrokoth",
     hand_key = mod.prefix .. "_flush_n",
     levels = 2,
+    set_badges = function(self, card, badges)
+        badges[1] = create_badge("Comet", G.C.SECONDARY_SET["Planet"], nil, 1.2)
+    end,
     atlas = "HexPlanets",
     pos = { x = 6, y = 4 },
     in_pool = hex_hand_played_check(mod.prefix .. "_flush_n"),
@@ -1818,6 +1963,10 @@ SMODS.Consumable{
 
     unlocked = true,
     discovered = true,
+    set_badges = function(self, card, badges)
+        badges[1] = create_badge("Comet", G.C.SECONDARY_SET["Planet"], nil, 1.2)
+    end,
+
 
     in_pool = function(self) return true end,
 
@@ -1829,10 +1978,13 @@ SMODS.Consumable{
             "{C:mult}+1{} Mult",
         },
     },
+    weight = 0.05,
 
     can_use = function(self, card)
         return true
     end,
+
+    in_pool = hex_hand_played_check(mod.prefix .. "_none"),
 
     use = function(self, card)
         local hand_key = mod.prefix .. "_none"
@@ -2145,8 +2297,8 @@ SMODS.Enhancement{
     loc_txt = {
         name = "Diamond Card",
         text = {
-            "Gives {C:chips}^#1#{} Chips and",
-            "{C:mult}^#1#{} Mult when scored",
+            "Gives {C:chips}^^#1#{} Chips and",
+            "{C:mult}^^#1#{} Mult when scored",
             "{C:inactive}(+0.5 height per Diamond{}",
             "{C:inactive}card in your deck){}",
         }
@@ -2714,6 +2866,19 @@ SMODS.Seal{
     end,
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
 -- Colour used for the Immortal sticker's badge/description text, the
 -- same way G.C.HEX_ORANGE_SEAL/HEX_GREEN_SEAL/HEX_PINK_SEAL/
 -- HEX_BLACK_SEAL were defined above for their respective Seals.
@@ -3132,9 +3297,9 @@ SMODS.Back{
 
 
 SMODS.Back({
-    key = "gold_deck",
+    key = "golden_deck",
     loc_txt = {
-        name = "Gold Deck",
+        name = "Golden Deck",
         text = {
             "Start with {C:money}$1000{}"
         }
@@ -5326,6 +5491,20 @@ SMODS.ConsumableType{
 
 local HEX_STAR_PACK_WEIGHT = ((G.P_CENTERS.p_spectral_normal and G.P_CENTERS.p_spectral_normal.weight) or 0.6) / 2
 
+-- Filters out any Star/Galaxy centers already picked earlier in this
+-- same pack opening, unless the player owns Showman (which allows
+-- duplicates everywhere else, so it makes sense to allow them here too).
+local function hex_filter_already_picked(centers, picked)
+    if hex_owns_showman() then return centers end
+
+    local out = {}
+    for _, c in ipairs(centers) do
+        if not picked[c.key] then
+            out[#out + 1] = c
+        end
+    end
+    return out
+end
 
 
 -- Star Pack: a Spectral-pack-style booster (3 cards shown, choose 1)
@@ -5377,17 +5556,22 @@ SMODS.Booster{
     weight = HEX_STAR_PACK_WEIGHT,
 
     create_card = function(self, card, i)
+        if i == 1 then
+            card.hex_star_pack_picked = {}
+        end
+        card.hex_star_pack_picked = card.hex_star_pack_picked or {}
+
         local chosen_key = nil
 
         if pseudorandom(pseudoseed(mod.prefix .. "_star_pack_galaxy")) < HEX_GALAXY_IN_STARPACK_CHANCE then
-            local galaxies = hex_get_galaxy_centers()
+            local galaxies = hex_filter_already_picked(hex_get_galaxy_centers(), card.hex_star_pack_picked)
             if #galaxies > 0 then
                 chosen_key = galaxies[math.random(#galaxies)].key
             end
         end
 
         if not chosen_key then
-            local stars = hex_get_star_centers()
+            local stars = hex_filter_already_picked(hex_get_star_centers(), card.hex_star_pack_picked)
             if #stars > 0 then
                 chosen_key = stars[math.random(#stars)].key
             end
@@ -5396,6 +5580,8 @@ SMODS.Booster{
         if not chosen_key then
             return { set = "Joker", area = G.pack_cards }
         end
+
+        card.hex_star_pack_picked[chosen_key] = true
 
         return {
             key = chosen_key,
@@ -5440,17 +5626,22 @@ SMODS.Booster{
     weight = HEX_STAR_PACK_WEIGHT / 2,
 
     create_card = function(self, card, i)
+        if i == 1 then
+            card.hex_star_pack_picked = {}
+        end
+        card.hex_star_pack_picked = card.hex_star_pack_picked or {}
+
         local chosen_key = nil
 
-        if pseudorandom(pseudoseed(mod.prefix .. "_jumbo_star_pack_galaxy")) < HEX_GALAXY_IN_STARPACK_CHANCE then
-            local galaxies = hex_get_galaxy_centers()
+        if pseudorandom(pseudoseed(mod.prefix .. "_star_pack_galaxy")) < HEX_GALAXY_IN_STARPACK_CHANCE then
+            local galaxies = hex_filter_already_picked(hex_get_galaxy_centers(), card.hex_star_pack_picked)
             if #galaxies > 0 then
                 chosen_key = galaxies[math.random(#galaxies)].key
             end
         end
 
         if not chosen_key then
-            local stars = hex_get_star_centers()
+            local stars = hex_filter_already_picked(hex_get_star_centers(), card.hex_star_pack_picked)
             if #stars > 0 then
                 chosen_key = stars[math.random(#stars)].key
             end
@@ -5459,6 +5650,8 @@ SMODS.Booster{
         if not chosen_key then
             return { set = "Joker", area = G.pack_cards }
         end
+
+        card.hex_star_pack_picked[chosen_key] = true
 
         return {
             key = chosen_key,
@@ -5500,17 +5693,22 @@ SMODS.Booster{
     weight = HEX_STAR_PACK_WEIGHT / 4,
 
     create_card = function(self, card, i)
+        if i == 1 then
+            card.hex_star_pack_picked = {}
+        end
+        card.hex_star_pack_picked = card.hex_star_pack_picked or {}
+
         local chosen_key = nil
 
-        if pseudorandom(pseudoseed(mod.prefix .. "_mega_star_pack_galaxy")) < HEX_GALAXY_IN_STARPACK_CHANCE then
-            local galaxies = hex_get_galaxy_centers()
+        if pseudorandom(pseudoseed(mod.prefix .. "_star_pack_galaxy")) < HEX_GALAXY_IN_STARPACK_CHANCE then
+            local galaxies = hex_filter_already_picked(hex_get_galaxy_centers(), card.hex_star_pack_picked)
             if #galaxies > 0 then
                 chosen_key = galaxies[math.random(#galaxies)].key
             end
         end
 
         if not chosen_key then
-            local stars = hex_get_star_centers()
+            local stars = hex_filter_already_picked(hex_get_star_centers(), card.hex_star_pack_picked)
             if #stars > 0 then
                 chosen_key = stars[math.random(#stars)].key
             end
@@ -5519,6 +5717,8 @@ SMODS.Booster{
         if not chosen_key then
             return { set = "Joker", area = G.pack_cards }
         end
+
+        card.hex_star_pack_picked[chosen_key] = true
 
         return {
             key = chosen_key,
@@ -5943,7 +6143,7 @@ SMODS.Consumable{
     end,
 
     use = function(self, card)
-        G.GAME.interest_cap = (G.GAME.interest_cap or 5) + 5
+        G.GAME.interest_cap = (G.GAME.interest_cap or 5) + 25
 
         card_eval_status_text(card, "extra", nil, nil, nil, {
             message = "+$5 Cap",
@@ -9936,11 +10136,11 @@ G.FUNCS.hex_sacrifice = function(e)
             gain = gain * big(2)
         end
 
-        -- The Monolith: +1 bonus Hex point per Hex, whatever the base value.
-        if #SMODS.find_card("j_" .. mod.prefix .. "_the_monolith") > 0 then
-            gain = gain + big(1)
+    -- The Monolith: +1 bonus Hex point per Hex, per copy owned (stacks).
+        local monolith_count = #SMODS.find_card("j_" .. mod.prefix .. "_the_monolith")
+        if monolith_count > 0 then
+            gain = gain + big(monolith_count)
         end
-
         G.GAME.hex_points = (G.GAME.hex_points or big(0)) + gain
         card_eval_status_text(card, "extra", nil, nil, nil, {
             message = "+" .. tostring(gain) .. " Hex",
