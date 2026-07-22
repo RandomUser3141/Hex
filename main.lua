@@ -10,7 +10,8 @@ mod.badge_colour = HEX("1E3A8A")
 
 
 mod.optional_features = {
-    quantum = true
+    quantum = true,
+    object_weights = true,
 }
 
 -- Amulet (Talisman-compatible) big-number support.
@@ -102,6 +103,9 @@ G.C.DIVINE = HEX("ebb12a")
 G.C.RITUAL = HEX("8f0d0d")
 G.C.STAR = HEX("0045b5")
 G.C.GALAXY = HEX("8A2BE2")
+G.C.NEBULA = HEX("521652")
+G.C.ASTRAL = HEX("276954")
+G.C.COSMIC = HEX("6D6BC2")
 
 G.C.ABSOLUTE = {1, 0, 0, 1} -- initial color
 
@@ -160,6 +164,15 @@ function loc_colour(_c, _default)
     end
     if _c == "galaxy" then
         return G.C.GALAXY
+    end
+    if _c == "nebula" then
+        return G.C.NEBULA
+    end
+    if _c == "astral" then
+        return G.C.ASTRAL
+    end
+    if _c == "cosmic" then
+        return G.C.COSMIC
     end
     return old_loc_colour(_c, _default)
 end
@@ -223,8 +236,8 @@ SMODS.Atlas{
 SMODS.Atlas{
     key = "HexTags",
     path = "tags.png",
-    px = 71,
-    py = 95,
+    px = 34,
+    py = 34,
 }
 
 SMODS.Atlas{
@@ -984,7 +997,7 @@ local function hex_make_level_planet(args)
     SMODS.Consumable{
         key = args.key,
         set = "Planet",
-        weight = 0.05,
+        weight = 0.1,
         set_badges = args.set_badges,
 
         atlas = args.atlas,
@@ -1026,7 +1039,7 @@ local function hex_make_stat_planet(args)
     SMODS.Consumable{
         key = args.key,
         set = "Planet",
-        weight = 0.05,
+        weight = 0.1,
         set_badges = args.set_badges,
 
         atlas = args.atlas,
@@ -1081,6 +1094,7 @@ hex_make_level_planet{
     name = "The Moon",
     hand_key = "Full House",
     levels = 2,
+    weight = 0.1,
     set_badges = function(self, card, badges)
         badges[1] = create_badge("Moon", G.C.SECONDARY_SET["Planet"], nil, 1.2)
     end,
@@ -1102,6 +1116,7 @@ hex_make_stat_planet{
     stats = { "chips" },
     op = "mult",
     factor = 1.75,
+    weight = 0.1,
     set_badges = function(self, card, badges)
         badges[1] = create_badge("Moon", G.C.SECONDARY_SET["Planet"], nil, 1.2)
     end,
@@ -1121,6 +1136,7 @@ hex_make_stat_planet{
     stats = { "mult" },
     op = "mult",
     factor = 1.75,
+    weight = 0.1,
     set_badges = function(self, card, badges)
         badges[1] = create_badge("Moon", G.C.SECONDARY_SET["Planet"], nil, 1.2)
     end,
@@ -1141,6 +1157,7 @@ hex_make_level_planet{
     name = "Vesta",
     hand_key = "Flush House",
     levels = 2,
+    weight = 0.1,
     set_badges = function(self, card, badges)
         badges[1] = create_badge("Asteroid", G.C.SECONDARY_SET["Planet"], nil, 1.2)
     end,
@@ -1161,6 +1178,7 @@ hex_make_stat_planet{
     op = "mult",
     factor = 1.75,
     atlas = "HexPlanets",
+    weight = 0.1,
     set_badges = function(self, card, badges)
         badges[1] = create_badge("Asteroid", G.C.SECONDARY_SET["Planet"], nil, 1.2)
     end,
@@ -1181,6 +1199,7 @@ hex_make_stat_planet{
     op = "mult",
     factor = 1.75,
     atlas = "HexPlanets",
+    weight = 0.1,
     set_badges = function(self, card, badges)
         badges[1] = create_badge("Asteroid", G.C.SECONDARY_SET["Planet"], nil, 1.2)
     end,
@@ -1202,6 +1221,7 @@ hex_make_level_planet{
     hand_key = "Flush",
     levels = 2,
     atlas = "HexPlanets",
+    weight = 0.1,
     set_badges = function(self, card, badges)
         badges[1] = create_badge("Moon", G.C.SECONDARY_SET["Planet"], nil, 1.2)
     end,
@@ -1220,6 +1240,7 @@ hex_make_stat_planet{
     op = "mult",
     factor = 1.75,
     atlas = "HexPlanets",
+    weight = 0.1,
     set_badges = function(self, card, badges)
         badges[1] = create_badge("Moon", G.C.SECONDARY_SET["Planet"], nil, 1.2)
     end,
@@ -1239,6 +1260,7 @@ hex_make_stat_planet{
     op = "mult",
     factor = 1.75,
     atlas = "HexPlanets",
+    weight = 0.1,
     set_badges = function(self, card, badges)
         badges[1] = create_badge("Moon", G.C.SECONDARY_SET["Planet"], nil, 1.2)
     end,
@@ -1257,6 +1279,7 @@ hex_make_stat_planet{
     stats = { "chips", "mult" },
     op = "mult",
     factor = 1.5,
+    weight = 0.1,
     set_badges = function(self, card, badges)
         badges[1] = create_badge("Moon", G.C.SECONDARY_SET["Planet"], nil, 1.2)
     end,
@@ -1278,6 +1301,7 @@ hex_make_stat_planet{
     op = "pow",
     factor = 1.1,
     atlas = "HexPlanets",
+    weight = 0.1,
     set_badges = function(self, card, badges)
         badges[1] = create_badge("Moon", G.C.SECONDARY_SET["Planet"], nil, 1.2)
     end,
@@ -1298,6 +1322,7 @@ hex_make_level_planet{
     name = "Mimas",
     hand_key = "Straight",
     levels = 2,
+    weight = 0.1,
     set_badges = function(self, card, badges)
         badges[1] = create_badge("Moon", G.C.SECONDARY_SET["Planet"], nil, 1.2)
     end,
@@ -1315,6 +1340,7 @@ hex_make_stat_planet{
     hand_key = "Straight",
     stats = { "chips" },
     op = "mult",
+    weight = 0.1,
     set_badges = function(self, card, badges)
         badges[1] = create_badge("Moon", G.C.SECONDARY_SET["Planet"], nil, 1.2)
     end,
@@ -1335,6 +1361,7 @@ hex_make_stat_planet{
     stats = { "mult" },
     op = "mult",
     factor = 1.75,
+    weight = 0.1,
     set_badges = function(self, card, badges)
         badges[1] = create_badge("Moon", G.C.SECONDARY_SET["Planet"], nil, 1.2)
     end,
@@ -1353,6 +1380,7 @@ hex_make_stat_planet{
     hand_key = "Straight",
     stats = { "chips", "mult" },
     op = "mult",
+    weight = 0.1,
     set_badges = function(self, card, badges)
         badges[1] = create_badge("Moon", G.C.SECONDARY_SET["Planet"], nil, 1.2)
     end,
@@ -1378,6 +1406,7 @@ hex_make_stat_planet{
     end,
     factor = 1.1,
     atlas = "HexPlanets",
+    weight = 0.1,
     pos = { x = 5, y = 1 },
     text = {
         "Upgrades {C:attention}Straight{}",
@@ -1393,6 +1422,7 @@ hex_make_stat_planet{
     hand_key = "Straight",
     stats = { "mult" },
     op = "mult",
+    weight = 0.1,
     set_badges = function(self, card, badges)
         badges[1] = create_badge("Moon", G.C.SECONDARY_SET["Planet"], nil, 1.2)
     end,
@@ -1412,6 +1442,7 @@ hex_make_stat_planet{
     hand_key = "Straight",
     stats = { "chips" },
     op = "mult",
+    weight = 0.1,
     set_badges = function(self, card, badges)
         badges[1] = create_badge("Moon", G.C.SECONDARY_SET["Planet"], nil, 1.2)
     end,
@@ -1433,6 +1464,7 @@ hex_make_level_planet{
     name = "Ariel",
     hand_key = "Two Pair",
     levels = 2,
+    weight = 0.1,
     set_badges = function(self, card, badges)
         badges[1] = create_badge("Moon", G.C.SECONDARY_SET["Planet"], nil, 1.2)
     end,
@@ -1450,6 +1482,7 @@ hex_make_stat_planet{
     hand_key = "Two Pair",
     stats = { "mult" },
     op = "mult",
+    weight = 0.1,
     set_badges = function(self, card, badges)
         badges[1] = create_badge("Moon", G.C.SECONDARY_SET["Planet"], nil, 1.2)
     end,
@@ -1472,6 +1505,7 @@ hex_make_stat_planet{
         badges[1] = create_badge("Moon", G.C.SECONDARY_SET["Planet"], nil, 1.2)
     end,
     op = "mult",
+    weight = 0.1,
     factor = 1.75,
     atlas = "HexPlanets",
     pos = { x = 0, y = 2 },
@@ -1490,6 +1524,7 @@ hex_make_stat_planet{
     op = "mult",
     factor = 1.5,
     atlas = "HexPlanets",
+    weight = 0.1,
     set_badges = function(self, card, badges)
         badges[1] = create_badge("Moon", G.C.SECONDARY_SET["Planet"], nil, 1.2)
     end,
@@ -1509,6 +1544,7 @@ hex_make_stat_planet{
     stats = { "chips", "mult" },
     op = "pow",
     factor = 1.1,
+    weight = 0.1,
     set_badges = function(self, card, badges)
         badges[1] = create_badge("Moon", G.C.SECONDARY_SET["Planet"], nil, 1.2)
     end,
@@ -1530,6 +1566,7 @@ hex_make_level_planet{
     name = "Triton",
     hand_key = "Straight Flush",
     levels = 2,
+    weight = 0.1,
     set_badges = function(self, card, badges)
         badges[1] = create_badge("Moon", G.C.SECONDARY_SET["Planet"], nil, 1.2)
     end,
@@ -1548,6 +1585,7 @@ hex_make_stat_planet{
     stats = { "chips" },
     op = "mult",
     factor = 1.75,
+    weight = 0.1,
     set_badges = function(self, card, badges)
         badges[1] = create_badge("Moon", G.C.SECONDARY_SET["Planet"], nil, 1.2)
     end,
@@ -1567,6 +1605,7 @@ hex_make_stat_planet{
     stats = { "mult" },
     op = "mult",
     factor = 1.75,
+    weight = 0.1,
     set_badges = function(self, card, badges)
         badges[1] = create_badge("Moon", G.C.SECONDARY_SET["Planet"], nil, 1.2)
     end,
@@ -1586,6 +1625,7 @@ hex_make_stat_planet{
     stats = { "chips", "mult" },
     op = "mult",
     factor = 1.5,
+    weight = 0.1,
     set_badges = function(self, card, badges)
         badges[1] = create_badge("Moon", G.C.SECONDARY_SET["Planet"], nil, 1.2)
     end,
@@ -1606,6 +1646,7 @@ hex_make_stat_planet{
     stats = { "chips", "mult" },
     op = "pow",
     factor = 1.1,
+    weight = 0.1,
     set_badges = function(self, card, badges)
         badges[1] = create_badge("Moon", G.C.SECONDARY_SET["Planet"], nil, 1.2)
     end,
@@ -1629,6 +1670,7 @@ hex_make_stat_planet{
     stats = { "mult" },
     op = "mult",
     factor = 1.75,
+    weight = 0.1,
     atlas = "HexPlanets",
     set_badges = function(self, card, badges)
         badges[1] = create_badge("Moon", G.C.SECONDARY_SET["Planet"], nil, 1.2)
@@ -1648,6 +1690,7 @@ hex_make_stat_planet{
     stats = { "chips" },
     op = "mult",
     factor = 1.75,
+    weight = 0.1,
     set_badges = function(self, card, badges)
         badges[1] = create_badge("Moon", G.C.SECONDARY_SET["Planet"], nil, 1.2)
     end,
@@ -1665,6 +1708,7 @@ hex_make_level_planet{
     name = "Hydra",
     hand_key = "High Card",
     levels = 2,
+    weight = 0.1,
     set_badges = function(self, card, badges)
         badges[1] = create_badge("Moon", G.C.SECONDARY_SET["Planet"], nil, 1.2)
     end,
@@ -1683,6 +1727,7 @@ hex_make_stat_planet{
     stats = { "chips", "mult" },
     op = "mult",
     factor = 1.5,
+    weight = 0.1,
     set_badges = function(self, card, badges)
         badges[1] = create_badge("Moon", G.C.SECONDARY_SET["Planet"], nil, 1.2)
     end,
@@ -1703,6 +1748,7 @@ hex_make_stat_planet{
     stats = { "chips", "mult" },
     op = "pow",
     factor = 1.1,
+    weight = 0.1,
     set_badges = function(self, card, badges)
         badges[1] = create_badge("Moon", G.C.SECONDARY_SET["Planet"], nil, 1.2)
     end,
@@ -1726,6 +1772,7 @@ hex_make_stat_planet{
     stats = { "chips" },
     op = "mult",
     factor = 1.75,
+    weight = 0.1,
     set_badges = function(self, card, badges)
         badges[1] = create_badge("Dwarf Planet", G.C.SECONDARY_SET["Planet"], nil, 1.2)
     end,
@@ -1746,6 +1793,7 @@ hex_make_stat_planet{
     stats = { "mult" },
     op = "mult",
     factor = 1.75,
+    weight = 0.1,
     set_badges = function(self, card, badges)
         badges[1] = create_badge("Dwarf Planet", G.C.SECONDARY_SET["Planet"], nil, 1.2)
     end,
@@ -1764,6 +1812,7 @@ hex_make_level_planet{
     name = "Dysnomia",
     hand_key = "Flush Five",
     levels = 2,
+    weight = 0.1,
     set_badges = function(self, card, badges)
         badges[1] = create_badge("Moon", G.C.SECONDARY_SET["Planet"], nil, 1.2)
     end,
@@ -1784,6 +1833,7 @@ hex_make_level_planet{
     name = "Quaoar",
     hand_key = mod.prefix .. "_dual_three_of_a_kind",
     levels = 2,
+    weight = 0.1,
     set_badges = function(self, card, badges)
         badges[1] = create_badge("Dwarf Planet", G.C.SECONDARY_SET["Planet"], nil, 1.2)
     end,
@@ -1801,6 +1851,7 @@ hex_make_level_planet{
     name = "Makemake",
     hand_key = mod.prefix .. "_flush_dual_three_of_a_kind",
     levels = 2,
+    weight = 0.1,
     set_badges = function(self, card, badges)
         badges[1] = create_badge("Dwarf Planet", G.C.SECONDARY_SET["Planet"], nil, 1.2)
     end,
@@ -1818,6 +1869,7 @@ hex_make_level_planet{
     name = "Gonggong",
     hand_key = mod.prefix .. "_grand_house",
     levels = 2,
+    weight = 0.1,
     set_badges = function(self, card, badges)
         badges[1] = create_badge("Dwarf Planet", G.C.SECONDARY_SET["Planet"], nil, 1.2)
     end,
@@ -1835,6 +1887,7 @@ hex_make_level_planet{
     name = "Sedna",
     hand_key = mod.prefix .. "_flush_grand_house",
     levels = 2,
+    weight = 0.1,
     set_badges = function(self, card, badges)
         badges[1] = create_badge("Dwarf Planet", G.C.SECONDARY_SET["Planet"], nil, 1.2)
     end,
@@ -1852,6 +1905,7 @@ hex_make_level_planet{
     name = "Comet Shoemaker-Levy 9",
     hand_key = mod.prefix .. "_three_pair",
     levels = 2,
+    weight = 0.1,
     set_badges = function(self, card, badges)
         badges[1] = create_badge("Comet", G.C.SECONDARY_SET["Planet"], nil, 1.2)
     end,
@@ -1869,6 +1923,7 @@ hex_make_level_planet{
     name = "Hale-Bopp Comet",
     hand_key = mod.prefix .. "_four_pair",
     levels = 2,
+    weight = 0.1,
     set_badges = function(self, card, badges)
         badges[1] = create_badge("Comet", G.C.SECONDARY_SET["Planet"], nil, 1.2)
     end,
@@ -1886,6 +1941,7 @@ hex_make_level_planet{
     name = "Oumuamua",
     hand_key = mod.prefix .. "_flush_three_pair",
     levels = 2,
+    weight = 0.1,
     set_badges = function(self, card, badges)
         badges[1] = create_badge("Comet", G.C.SECONDARY_SET["Planet"], nil, 1.2)
     end,
@@ -1906,6 +1962,7 @@ hex_make_level_planet{
     set_badges = function(self, card, badges)
         badges[1] = create_badge("Comet", G.C.SECONDARY_SET["Planet"], nil, 1.2)
     end,
+    weight = 0.1,
     atlas = "HexPlanets",
     pos = { x = 4, y = 4 },
     in_pool = hex_hand_played_check(mod.prefix .. "_flush_four_pair"),
@@ -1923,6 +1980,7 @@ hex_make_level_planet{
     set_badges = function(self, card, badges)
         badges[1] = create_badge("Comet", G.C.SECONDARY_SET["Planet"], nil, 1.2)
     end,
+    weight = 0.1,
     atlas = "HexPlanets",
     pos = { x = 5, y = 4 },
     in_pool = hex_hand_played_check(mod.prefix .. "_n_of_a_kind"),
@@ -1937,6 +1995,7 @@ hex_make_level_planet{
     name = "Arrokoth",
     hand_key = mod.prefix .. "_flush_n",
     levels = 2,
+    weight = 0.1,
     set_badges = function(self, card, badges)
         badges[1] = create_badge("Comet", G.C.SECONDARY_SET["Planet"], nil, 1.2)
     end,
@@ -1963,6 +2022,7 @@ SMODS.Consumable{
 
     unlocked = true,
     discovered = true,
+    weight = 0.1,
     set_badges = function(self, card, badges)
         badges[1] = create_badge("Comet", G.C.SECONDARY_SET["Planet"], nil, 1.2)
     end,
@@ -1978,7 +2038,7 @@ SMODS.Consumable{
             "{C:mult}+1{} Mult",
         },
     },
-    weight = 0.05,
+    weight = 0.1,
 
     can_use = function(self, card)
         return true
@@ -2310,6 +2370,10 @@ SMODS.Enhancement{
     unlocked = true,
     discovered = true,
     weight = 0,
+    no_rank = true,
+    no_suit = true,
+    replace_base_card = true,
+    always_scores = true,
 
     in_pool = function(self) return true end,
 
@@ -2402,7 +2466,8 @@ SMODS.Edition{
     in_shop = true,
     unlocked = true,
     discovered = true,
-    weight = 0.005,
+    weight = 1.0,
+    extra_cost = 10,
 
     in_pool = function(self)
         return true
@@ -2443,7 +2508,8 @@ SMODS.Edition{
     in_shop = true,
     unlocked = true,
     discovered = true,
-    weight = 0.010,
+    weight = 2.0,
+    extra_cost = 5,
 
     in_pool = function(self)
         return true
@@ -2487,7 +2553,8 @@ SMODS.Edition{
     in_shop = true,
     unlocked = true,
     discovered = true,
-    weight = 0.005,
+    weight = 1.0,
+    extra_cost = 10,
 
     in_pool = function(self)
         return true
@@ -2531,7 +2598,8 @@ SMODS.Edition{
     in_shop = true,
     unlocked = true,
     discovered = true,
-    weight = 0.0001,
+    weight = 0.1,
+    extra_cost = 40,
 
     in_pool = function(self)
         return true
@@ -2578,7 +2646,8 @@ SMODS.Edition{
     in_shop = true,
     unlocked = true,
     discovered = true,
-    weight = 0.00001, -- rarer than Radiant, matches the step up in power
+    weight = 0.05, -- rarer than Radiant, matches the step up in power
+    extra_cost = 100,
 
     in_pool = function(self)
         return true
@@ -3097,6 +3166,42 @@ SMODS.Voucher{
     end,
 }
 
+
+
+-- Cosmic Rays: tier 3 of Nova (requires Hypernova). Unlocks Galaxy Packs
+-- appearing in the shop's normal pack-weight pool -- same on/off switch
+-- pattern Nova uses for Star Packs, just gating a separate flag that
+-- Galaxy Pack / Jumbo Galaxy Pack / Mega Galaxy Pack's own in_pool
+-- checks read below.
+SMODS.Voucher{
+    key = "cosmic_rays",
+
+    loc_txt = {
+        name = "Cosmic Rays",
+        text = {
+            "{C:galaxy}Galaxy Packs{} can now",
+            "appear in the shop",
+            "{C:inactive}(Half as often as{}",
+            "{C:inactive}Star Packs){}",
+        }
+    },
+
+    atlas = "HexVouchers",
+    pos = { x = 7, y = 0 }, -- shares its frame with the other (7,0) vouchers in this mod, per existing convention
+
+    requires = { "v_" .. mod.prefix .. "_hypernova" },
+
+    unlocked = true,
+    discovered = true,
+
+    redeem = function(self, card)
+        G.GAME.hex_cosmic_rays_unlocked = true
+    end,
+}
+
+
+
+
 -- Reach / Long Reach: permanently raises the playing-card selection
 -- limit (the same limit Polydactyly overrides to effectively-infinite,
 -- and Pinwheel Galaxy nudges up a point at a time) via a persistent
@@ -3371,8 +3476,6 @@ SMODS.Back{
                         if voucher.redeem then
                             voucher:redeem()
                         end
-                    else
-                        print("Missing voucher:", key)
                     end
                 end
 
@@ -3485,18 +3588,87 @@ end
 
 local HEX_GALAXY_PACK_CHANCE = 1 / 66
 local HEX_GALAXY_IN_STARPACK_CHANCE = 1 / 33
+local HEX_SMC_CENTER_KEY = "c_" .. mod.prefix .. "_small_magellanic_cloud"
+local HEX_LMC_CENTER_KEY = "c_" .. mod.prefix .. "_large_magellanic_cloud"
 
 local function hex_get_galaxy_centers()
     local out = {}
 
     for _, center in pairs(G.P_CENTERS) do
         if center.set == "galaxy" then
-            out[#out + 1] = center
+            local skip = false
+
+            if center.key == HEX_SMC_CENTER_KEY
+            and G.GAME and G.GAME.hex_smc_used then
+                skip = true
+            end
+
+            if center.key == HEX_LMC_CENTER_KEY then
+                if not (G.GAME and G.GAME.hex_lmc_unlocked) then
+                    skip = true
+                end
+                if G.GAME and G.GAME.hex_lmc_used then
+                    skip = true
+                end
+            end
+
+            if not skip then
+                out[#out + 1] = center
+            end
         end
     end
 
     return out
 end
+
+local HEX_NEBULA_IN_GALAXYPACK_CHANCE = 1 / 33
+
+local function hex_get_nebula_centers()
+    local out = {}
+    local showman = hex_owns_showman()
+
+    for _, center in pairs(G.P_CENTERS) do
+        if center.set == "nebula" then
+            local skip = false
+
+            if not showman and hex_consumable_already_owned(center.key) then
+                skip = true
+            end
+
+            if not skip then
+                out[#out + 1] = center
+            end
+        end
+    end
+
+    return out
+end
+
+
+local HEX_ASTRAL_IN_PACK_CHANCE = 1 / 33
+
+local function hex_get_astral_centers()
+    local out = {}
+    local showman = hex_owns_showman()
+
+    for _, center in pairs(G.P_CENTERS) do
+        if center.set == "astral" then
+            local skip = false
+
+            if not showman and hex_consumable_already_owned(center.key) then
+                skip = true
+            end
+
+            if not skip then
+                out[#out + 1] = center
+            end
+        end
+    end
+
+    return out
+end
+
+
 
 -- Base chance for an individual shop consumable slot to be replaced with
 -- a Star card instead, once Hypernova has been bought. Kept independent
@@ -3531,6 +3703,7 @@ function create_card(_type, area, legendary, _rarity, skip_materialize, soulable
             forced_key = stars[math.random(#stars)].key
         end
     end
+    
 
 
     -- Galaxy cards get first crack at a Spectral/Tarot pack slot (1 in
@@ -4485,6 +4658,9 @@ local HEX_PERKEO_BLOCKED_SETS = {
     ritual = true,
     star = true,
     galaxy = true,
+    nebula = true,
+    astral = true,
+    cosmic = true,
 }
 local hex_old_calculate_joker = Card.calculate_joker
 
@@ -5485,6 +5661,79 @@ SMODS.ConsumableType{
     can_divide = true,
 }
 
+SMODS.ConsumableType{
+    key = "nebula",
+    primary_colour = G.C.NEBULA,
+    secondary_colour = G.C.NEBULA,
+    badge_colour = G.C.NEBULA,
+    collection_rows = { 4, 5 },
+    shop_rate = 0,          -- never appears in normal shop generation
+    loc_txt = {
+        name = "Nebula",
+        collection = "Nebulas",
+        undiscovered = {
+            name = "Undiscovered Nebula",
+            text = {
+                "Use this Nebula",
+                "to discover it"
+            }
+        }
+    },
+    can_stack = true,
+    can_divide = true,
+}
+
+
+
+
+
+SMODS.ConsumableType{
+    key = "astral",
+    primary_colour = G.C.ASTRAL,
+    secondary_colour = G.C.ASTRAL,
+    badge_colour = G.C.ASTRAL,
+    collection_rows = { 5, 5 },
+    shop_rate = 0,          -- never appears in normal shop generation
+    loc_txt = {
+        name = "Astral",
+        collection = "Astrals",
+        undiscovered = {
+            name = "Undiscovered Astral",
+            text = {
+                "Use this Astral",
+                "to discover it"
+            }
+        }
+    },
+    can_stack = true,
+    can_divide = true,
+}
+
+
+SMODS.ConsumableType{
+    key = "cosmic",
+    primary_colour = G.C.COSMIC,
+    secondary_colour = G.C.COSMIC,
+    badge_colour = G.C.COSMIC,
+    collection_rows = { 6, 6 },
+    shop_rate = 0,          -- never appears in normal shop generation
+    loc_txt = {
+        name = "Cosmic",
+        collection = "Cosmics",
+        undiscovered = {
+            name = "Undiscovered Cosmic",
+            text = {
+                "Use this Cosmic",
+                "to discover it"
+            }
+        }
+    },
+    can_stack = true,
+    can_divide = true,
+}
+
+
+
 
 
 
@@ -5516,7 +5765,7 @@ end
 -- field is set to "star" (matching both the ConsumableType key
 -- registered just above, and the `set = "star"` every Star card itself
 -- uses).
---
+
 -- Hidden from the shop's normal pack-weight pool (in_pool = false)
 -- until the Nova voucher has been bought (see its own registration
 -- earlier in the file, alongside Legendary Soul/Mythic Heart), at which
@@ -5530,6 +5779,7 @@ end
 SMODS.Booster{
     key = "star_pack",
     kind = "star",
+    cost = 4,
 
     atlas = "HexBoosters",
     pos = { x = 0, y = 5 },
@@ -5563,7 +5813,16 @@ SMODS.Booster{
 
         local chosen_key = nil
 
-        if pseudorandom(pseudoseed(mod.prefix .. "_star_pack_galaxy")) < HEX_GALAXY_IN_STARPACK_CHANCE then
+        if G.GAME and G.GAME.hex_astral_unlocked
+        and pseudorandom(pseudoseed(mod.prefix .. "_star_pack_astral")) < HEX_ASTRAL_IN_PACK_CHANCE then
+            local astrals = hex_filter_already_picked(hex_get_astral_centers(), card.hex_star_pack_picked)
+            if #astrals > 0 then
+                chosen_key = astrals[math.random(#astrals)].key
+            end
+        end
+
+        if not chosen_key
+        and pseudorandom(pseudoseed(mod.prefix .. "_star_pack_galaxy")) < HEX_GALAXY_IN_STARPACK_CHANCE then
             local galaxies = hex_filter_already_picked(hex_get_galaxy_centers(), card.hex_star_pack_picked)
             if #galaxies > 0 then
                 chosen_key = galaxies[math.random(#galaxies)].key
@@ -5600,6 +5859,7 @@ SMODS.Booster{
 SMODS.Booster{
     key = "jumbo_star_pack",
     kind = "star",
+    cost = 6,
 
     atlas = "HexBoosters",
     pos = { x = 0, y = 5 }, 
@@ -5633,7 +5893,16 @@ SMODS.Booster{
 
         local chosen_key = nil
 
-        if pseudorandom(pseudoseed(mod.prefix .. "_star_pack_galaxy")) < HEX_GALAXY_IN_STARPACK_CHANCE then
+        if G.GAME and G.GAME.hex_astral_unlocked
+        and pseudorandom(pseudoseed(mod.prefix .. "_star_pack_astral")) < HEX_ASTRAL_IN_PACK_CHANCE then
+            local astrals = hex_filter_already_picked(hex_get_astral_centers(), card.hex_star_pack_picked)
+            if #astrals > 0 then
+                chosen_key = astrals[math.random(#astrals)].key
+            end
+        end
+
+        if not chosen_key
+        and pseudorandom(pseudoseed(mod.prefix .. "_star_pack_galaxy")) < HEX_GALAXY_IN_STARPACK_CHANCE then
             local galaxies = hex_filter_already_picked(hex_get_galaxy_centers(), card.hex_star_pack_picked)
             if #galaxies > 0 then
                 chosen_key = galaxies[math.random(#galaxies)].key
@@ -5667,6 +5936,7 @@ SMODS.Booster{
 SMODS.Booster{
     key = "mega_star_pack",
     kind = "star",
+    cost = 8,
 
     atlas = "HexBoosters",
     pos = { x = 0, y = 5 }, 
@@ -5700,7 +5970,16 @@ SMODS.Booster{
 
         local chosen_key = nil
 
-        if pseudorandom(pseudoseed(mod.prefix .. "_star_pack_galaxy")) < HEX_GALAXY_IN_STARPACK_CHANCE then
+        if G.GAME and G.GAME.hex_astral_unlocked
+        and pseudorandom(pseudoseed(mod.prefix .. "_star_pack_astral")) < HEX_ASTRAL_IN_PACK_CHANCE then
+            local astrals = hex_filter_already_picked(hex_get_astral_centers(), card.hex_star_pack_picked)
+            if #astrals > 0 then
+                chosen_key = astrals[math.random(#astrals)].key
+            end
+        end
+
+        if not chosen_key
+        and pseudorandom(pseudoseed(mod.prefix .. "_star_pack_galaxy")) < HEX_GALAXY_IN_STARPACK_CHANCE then
             local galaxies = hex_filter_already_picked(hex_get_galaxy_centers(), card.hex_star_pack_picked)
             if #galaxies > 0 then
                 chosen_key = galaxies[math.random(#galaxies)].key
@@ -5748,6 +6027,153 @@ local function hex_consumable_already_owned(key)
     end
     return false
 end
+
+local HEX_GALAXY_PACK_WEIGHT = HEX_STAR_PACK_WEIGHT / 2
+local function hex_galaxy_pack_create_card(card, i)
+    if i == 1 then
+        card.hex_galaxy_pack_picked = {}
+    end
+    card.hex_galaxy_pack_picked = card.hex_galaxy_pack_picked or {}
+
+    local chosen_key = nil
+
+    if G.GAME and G.GAME.hex_astral_unlocked
+    and pseudorandom(pseudoseed(mod.prefix .. "_galaxy_pack_astral")) < HEX_ASTRAL_IN_PACK_CHANCE then
+        local astrals = hex_filter_already_picked(hex_get_astral_centers(), card.hex_galaxy_pack_picked)
+        if #astrals > 0 then
+            chosen_key = astrals[math.random(#astrals)].key
+        end
+    end
+
+    if not chosen_key
+    and pseudorandom(pseudoseed(mod.prefix .. "_galaxy_pack_nebula")) < HEX_NEBULA_IN_GALAXYPACK_CHANCE then
+        local nebulas = hex_filter_already_picked(hex_get_nebula_centers(), card.hex_galaxy_pack_picked)
+        if #nebulas > 0 then
+            chosen_key = nebulas[math.random(#nebulas)].key
+        end
+    end
+
+    if not chosen_key then
+        local galaxies = hex_filter_already_picked(hex_get_galaxy_centers(), card.hex_galaxy_pack_picked)
+        if #galaxies > 0 then
+            chosen_key = galaxies[math.random(#galaxies)].key
+        end
+    end
+
+    if not chosen_key then
+        return { set = "Joker", area = G.pack_cards }
+    end
+
+    card.hex_galaxy_pack_picked[chosen_key] = true
+
+    return {
+        key = chosen_key,
+        area = G.pack_cards,
+        skip_materialize = true,
+    }
+end
+
+SMODS.Booster{
+    key = "galaxy_pack",
+    kind = "galaxy",
+    cost = 4,
+
+    atlas = "HexBoosters",
+    pos = { x = 0, y = 5 }, -- shares a frame with the Star Pack tiers -- move before shipping if unintentional
+
+    config = { extra = 3, choose = 1 },
+
+    loc_txt = {
+        name = "Galaxy Pack",
+        group_name = "Galaxy Pack",
+        text = {
+            "Choose {C:attention}1{} of {C:attention}3{}",
+            "{C:galaxy}Galaxy{} cards",
+        }
+    },
+
+    unlocked = true,
+    discovered = true,
+    draw_hand = true,
+
+    in_pool = function(self)
+        return (G.GAME and G.GAME.hex_cosmic_rays_unlocked) or false
+    end,
+
+    weight = HEX_GALAXY_PACK_WEIGHT,
+
+    create_card = hex_galaxy_pack_create_card,
+}
+
+SMODS.Booster{
+    key = "jumbo_galaxy_pack",
+    kind = "galaxy",
+    cost = 6,
+
+    atlas = "HexBoosters",
+    pos = { x = 0, y = 5 },
+
+    config = { extra = 5, choose = 1 },
+
+    loc_txt = {
+        name = "Jumbo Galaxy Pack",
+        group_name = "Galaxy Pack",
+        text = {
+            "Choose {C:attention}1{} of {C:attention}5{}",
+            "{C:galaxy}Galaxy{} cards",
+        }
+    },
+
+    unlocked = true,
+    discovered = true,
+    draw_hand = true,
+
+    in_pool = function(self)
+        return (G.GAME and G.GAME.hex_cosmic_rays_unlocked) or false
+    end,
+
+    weight = HEX_GALAXY_PACK_WEIGHT / 2,
+
+    create_card = hex_galaxy_pack_create_card,
+}
+
+SMODS.Booster{
+    key = "mega_galaxy_pack",
+    kind = "galaxy",
+    cost = 8,
+
+    atlas = "HexBoosters",
+    pos = { x = 0, y = 5 },
+
+    config = { extra = 5, choose = 2 },
+
+    loc_txt = {
+        name = "Mega Galaxy Pack",
+        group_name = "Galaxy Pack",
+        text = {
+            "Choose {C:attention}2{} of {C:attention}5{}",
+            "{C:galaxy}Galaxy{} cards",
+        }
+    },
+
+    unlocked = true,
+    discovered = true,
+    draw_hand = true,
+
+    in_pool = function(self)
+        return (G.GAME and G.GAME.hex_cosmic_rays_unlocked) or false
+    end,
+
+    weight = HEX_GALAXY_PACK_WEIGHT / 4,
+
+    create_card = hex_galaxy_pack_create_card,
+}
+
+
+
+
+
+
 
 
 
@@ -6809,25 +7235,6 @@ SMODS.Consumable{
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 -- Rigel: creates 2 Negative Planet cards, 2 Negative Tarot cards, and 1
 -- Negative Spectral card, staggered by a short delay each (same
 -- staggering technique Proxima Centauri already uses above for its own
@@ -7434,9 +7841,8 @@ local function hex_andromeda_eligible_jokers()
     if not (G.jokers and G.jokers.cards) then return out end
 
     for _, j in ipairs(G.jokers.cards) do
-        local eternal = j.ability and j.ability.eternal
         local immortal = j.ability and j.ability[HEX_IMMORTAL_STICKER_KEY]
-        if not eternal and not immortal then
+        if not immortal then
             out[#out + 1] = j
         end
     end
@@ -7936,6 +8342,1359 @@ SMODS.Consumable{
         })
     end,
 }
+
+
+
+
+
+-- Small Magellanic Cloud: a one-time-use unlock card, mirroring Toi-125's
+-- own unlock chain above for Star cards. Using it permanently unlocks
+-- Large Magellanic Cloud (below) so it can start appearing via the
+-- Spectral/Arcana pack hook and Big Bang/Sombrero Galaxy-style grants,
+-- and Small Magellanic Cloud itself is removed from the Galaxy pool for
+-- the rest of the run the moment it's used -- both handled by the
+-- hex_get_galaxy_centers filter above, gated on the two G.GAME flags
+-- set below.
+SMODS.Consumable{
+    key = "small_magellanic_cloud",
+    set = "galaxy",
+
+    atlas = "HexStarsGalaxies",
+    pos = { x = 3, y = 3 }, -- next open frame in the atlas
+
+    unlocked = true,
+    discovered = true,
+
+    in_pool = function(self)
+        return not (G.GAME and G.GAME.hex_smc_used)
+    end,
+
+    loc_txt = {
+        name = "Small Magellanic Cloud",
+        text = {
+            "Unlocks {C:attention}Large",
+            "Magellanic Cloud{}",
+            "{C:inactive}This card can't appear{}",
+            "{C:inactive}again after being used{}",
+        }
+    },
+
+    can_use = function(self, card)
+        return true
+    end,
+
+    use = function(self, card)
+        G.GAME.hex_smc_used = true
+        G.GAME.hex_lmc_unlocked = true
+
+        card_eval_status_text(card, "extra", nil, nil, nil, {
+            message = "Unlocked!",
+            colour = G.C.GALAXY
+        })
+    end,
+}
+
+-- Large Magellanic Cloud: grants +2 Joker slots. Hidden from the Galaxy
+-- pool entirely until Small Magellanic Cloud has been used (see
+-- hex_get_galaxy_centers), and -- same as Small Magellanic Cloud itself
+-- -- removed from that pool for the rest of the run the moment it's
+-- used, via hex_lmc_used below.
+SMODS.Consumable{
+    key = "large_magellanic_cloud",
+    set = "galaxy",
+
+    atlas = "HexStarsGalaxies",
+    pos = { x = 9, y = 3 }, -- next open frame in the atlas
+
+    unlocked = true,
+    discovered = true,
+
+    in_pool = function(self)
+        return (G.GAME and G.GAME.hex_lmc_unlocked and not G.GAME.hex_lmc_used) or false
+    end,
+
+    loc_txt = {
+        name = "Large Magellanic Cloud",
+        text = {
+            "Gain {C:attention}+2{} Joker slots",
+            "{C:inactive}This card can't appear{}",
+            "{C:inactive}again after being used{}",
+        }
+    },
+
+    can_use = function(self, card)
+        return true
+    end,
+
+    use = function(self, card)
+        if G.jokers and G.jokers.config then
+            G.jokers.config.card_limit = G.jokers.config.card_limit + 2
+        end
+
+        G.GAME.hex_lmc_used = true
+
+        card_eval_status_text(card, "extra", nil, nil, nil, {
+            message = "+2 Slots",
+            colour = G.C.GALAXY
+        })
+    end,
+}
+
+
+SMODS.Consumable{
+    key = "tadpole_galaxy",
+    set = "galaxy",
+
+    atlas = "HexStarsGalaxies",
+    pos = { x = 0, y = 4 }, -- next open row after Large Magellanic Cloud (9,3)
+
+    unlocked = true,
+    discovered = true,
+
+    in_pool = function(self)
+        return true
+    end,
+
+    loc_txt = {
+        name = "Tadpole Galaxy",
+        text = {
+            "{C:green}1 in 5{} chance to create a",
+            "random {C:purple}Nebula{} card",
+        }
+    },
+
+    can_use = function(self, card)
+        return true
+    end,
+
+    use = function(self, card)
+        if pseudorandom(pseudoseed(mod.prefix .. "_tadpole_galaxy")) < (1 / 5) then
+            G.E_MANAGER:add_event(Event({
+                trigger = "after",
+                delay = 0.1,
+                func = function()
+                    if G.consumeables and #G.consumeables.cards < G.consumeables.config.card_limit then
+                        local nebulas = hex_get_nebula_centers()
+                        if #nebulas > 0 then
+                            local chosen = nebulas[math.random(#nebulas)]
+
+                            local new_card = SMODS.create_card({
+                                key = chosen.key,
+                                area = G.consumeables
+                            })
+
+                            G.consumeables:emplace(new_card)
+
+                            card_eval_status_text(new_card, "extra", nil, nil, nil, {
+                                message = "Nebula!",
+                                colour = G.C.NEBULA
+                            })
+                        end
+                    end
+                    return true
+                end
+            }))
+        else
+            card_eval_status_text(card, "extra", nil, nil, nil, {
+                message = "Nope",
+                colour = G.C.GALAXY
+            })
+        end
+    end,
+}
+
+
+SMODS.Consumable{
+    key = "alcyoneus",
+    set = "galaxy",
+
+    atlas = "HexStarsGalaxies",
+    pos = { x = 1, y = 4 },
+
+    unlocked = true,
+    discovered = true,
+
+    in_pool = function(self)
+        return true
+    end,
+
+    loc_txt = {
+        name = "Alcyoneus",
+        text = {
+            "Gives {C:attention}up to 2{} selected",
+            "playing cards the",
+            "{C:blue}Crystal{} enhancement",
+        }
+    },
+
+    loc_vars = function(self, info_queue, card)
+        info_queue[#info_queue + 1] = G.P_CENTERS["m_" .. mod.prefix .. "_crystal"]
+        return { vars = {} }
+    end,
+
+    can_use = function(self, card)
+        return G.hand and G.hand.highlighted
+            and #G.hand.highlighted >= 1
+            and #G.hand.highlighted <= 2
+    end,
+
+    use = function(self, card)
+        if not (G.hand and G.hand.highlighted
+        and #G.hand.highlighted >= 1
+        and #G.hand.highlighted <= 2) then return end
+
+        local targets = {}
+        for _, c in ipairs(G.hand.highlighted) do
+            targets[#targets + 1] = c
+        end
+
+        for _, target in ipairs(targets) do
+            target:set_ability(G.P_CENTERS["m_" .. mod.prefix .. "_crystal"])
+        end
+
+        card_eval_status_text(card, "extra", nil, nil, nil, {
+            message = "Crystal!",
+            colour = G.C.GALAXY
+        })
+    end,
+}
+
+-- Whirlpool Galaxy: permanently adds a bonus number of extra levels onto
+-- every Planet card's own level_up_hand call, the same "persistent
+-- counter read by a wrapped function" approach Canopus already uses for
+-- Black Hole above. Wrapping level_up_hand globally (rather than editing
+-- every individual hex_make_level_planet call) means this applies to
+-- vanilla-style Planet cards and any future custom Planet added the same
+-- way, automatically -- gated on the calling card's own center.set being
+-- "Planet" so it never touches Vega/Hoag's Object/Ritual-driven
+-- level_up_hand calls, which aren't Planet cards themselves.
+local hex_old_level_up_hand_whirlpool = level_up_hand
+
+function level_up_hand(card, hand, bypass_visual_effect, amount)
+    local bonus = 0
+
+    if card and card.config and card.config.center and card.config.center.set == "Planet" then
+        bonus = (G.GAME and G.GAME.hex_whirlpool_bonus_levels) or 0
+    end
+
+    return hex_old_level_up_hand_whirlpool(card, hand, bypass_visual_effect, (amount or 1) + bonus)
+end
+
+SMODS.Consumable{
+    key = "whirlpool_galaxy",
+    set = "galaxy",
+
+    atlas = "HexStarsGalaxies",
+    pos = { x = 2, y = 4 },
+
+    unlocked = true,
+    discovered = true,
+
+    in_pool = function(self)
+        return true
+    end,
+
+    loc_txt = {
+        name = "Whirlpool Galaxy",
+        text = {
+            "Permanently gives every",
+            "{C:attention}Planet{} card",
+            "{C:attention}+1{} extra level",
+            "{C:inactive}(Currently +#1#){}"
+        }
+    },
+
+    loc_vars = function(self, info_queue, card)
+        return { vars = { (G.GAME and G.GAME.hex_whirlpool_bonus_levels) or 0 } }
+    end,
+
+    can_use = function(self, card)
+        return true
+    end,
+
+    use = function(self, card)
+        G.GAME.hex_whirlpool_bonus_levels = (G.GAME.hex_whirlpool_bonus_levels or 0) + 1
+
+        card_eval_status_text(card, "extra", nil, nil, nil, {
+            message = "+1 Planet Level",
+            colour = G.C.GALAXY
+        })
+    end,
+}
+
+SMODS.Consumable{
+    key = "cartwheel_galaxy",
+    set = "galaxy",
+
+    atlas = "HexStarsGalaxies",
+    pos = { x = 3, y = 4 },
+
+    unlocked = true,
+    discovered = true,
+
+    in_pool = function(self)
+        return true
+    end,
+
+    loc_txt = {
+        name = "Cartwheel Galaxy",
+        text = {
+            "Gives {C:attention}1{} selected",
+            "playing card the",
+            "{C:red}Ruby{} enhancement",
+        }
+    },
+
+    loc_vars = function(self, info_queue, card)
+        info_queue[#info_queue + 1] = G.P_CENTERS["m_" .. mod.prefix .. "_ruby"]
+        return { vars = {} }
+    end,
+
+    can_use = function(self, card)
+        return G.hand and G.hand.highlighted and #G.hand.highlighted == 1
+    end,
+
+    use = function(self, card)
+        if not (G.hand and G.hand.highlighted and G.hand.highlighted[1]) then return end
+
+        local target = G.hand.highlighted[1]
+        target:set_ability(G.P_CENTERS["m_" .. mod.prefix .. "_ruby"])
+
+        card_eval_status_text(target, "extra", nil, nil, nil, {
+            message = "Ruby!",
+            colour = G.C.GALAXY
+        })
+    end,
+}
+
+
+SMODS.Consumable{
+    key = "needle_galaxy",
+    set = "galaxy",
+
+    atlas = "HexStarsGalaxies",
+    pos = { x = 4, y = 4 },
+
+    unlocked = true,
+    discovered = true,
+
+    in_pool = function(self)
+        return true
+    end,
+
+    loc_txt = {
+        name = "Needle Galaxy",
+        text = {
+            "Gives {C:attention}1{} selected",
+            "playing card the",
+            "{C:blue}Sapphire{} enhancement",
+        }
+    },
+
+    loc_vars = function(self, info_queue, card)
+        info_queue[#info_queue + 1] = G.P_CENTERS["m_" .. mod.prefix .. "_sapphire"]
+        return { vars = {} }
+    end,
+
+    can_use = function(self, card)
+        return G.hand and G.hand.highlighted and #G.hand.highlighted == 1
+    end,
+
+    use = function(self, card)
+        if not (G.hand and G.hand.highlighted and G.hand.highlighted[1]) then return end
+
+        local target = G.hand.highlighted[1]
+        target:set_ability(G.P_CENTERS["m_" .. mod.prefix .. "_sapphire"])
+
+        card_eval_status_text(target, "extra", nil, nil, nil, {
+            message = "Sapphire!",
+            colour = G.C.GALAXY
+        })
+    end,
+}
+
+
+SMODS.Consumable{
+    key = "sculptor_galaxy",
+    set = "galaxy",
+
+    atlas = "HexStarsGalaxies",
+    pos = { x = 5, y = 4 },
+
+    unlocked = true,
+    discovered = true,
+
+    in_pool = function(self)
+        return not (G.GAME and G.GAME.hex_astral_unlocked)
+    end,
+
+    loc_txt = {
+        name = "Sculptor Galaxy",
+        text = {
+            "{C:green}#1# in 100{} chance to",
+            "unlock {C:astral}Astral{} cards",
+            "{C:inactive}(Can't appear after{}",
+            "{C:inactive}Astral cards are unlocked){}",
+        }
+    },
+
+    loc_vars = function(self, info_queue, card)
+        local mult = (G.GAME and G.GAME.hex_ic1101_mult) or 1
+        return { vars = { 1 * mult } }
+    end,
+
+    can_use = function(self, card)
+        return not (G.GAME and G.GAME.hex_astral_unlocked)
+    end,
+
+    use = function(self, card)
+        if G.GAME.hex_astral_unlocked then return end
+
+        local mult = (G.GAME and G.GAME.hex_ic1101_mult) or 1
+        local chance = (1 / 100) * mult
+
+        if pseudorandom(pseudoseed(mod.prefix .. "_sculptor_galaxy")) < chance then
+            G.GAME.hex_astral_unlocked = true
+
+            card_eval_status_text(card, "extra", nil, nil, nil, {
+                message = "Astrals Unlocked!",
+                colour = G.C.ASTRAL
+            })
+        else
+            card_eval_status_text(card, "extra", nil, nil, nil, {
+                message = "Nope!",
+                colour = G.C.GALAXY
+            })
+        end
+    end,
+}
+
+
+
+
+SMODS.Consumable{
+    key = "ic_1101",
+    set = "galaxy",
+
+    atlas = "HexStarsGalaxies",
+    pos = { x = 6, y = 4 },
+
+    unlocked = true,
+    discovered = true,
+
+    in_pool = function(self)
+        if G.GAME and G.GAME.hex_astral_unlocked then return false end
+        if G.GAME and (G.GAME.hex_ic1101_uses or 0) >= 4 then return false end
+        return true
+    end,
+
+    loc_txt = {
+        name = "IC 1101",
+        text = {
+            "{C:attention}X3{} the chance to unlock",
+            "{C:astral}Astral{} cards when using",
+            "{C:attention}Sculptor Galaxy{}",
+            "{C:inactive}(Can be used up to 4 times){}",
+            "{C:inactive}(Currently X#1#, #2#/4 uses){}",
+        }
+    },
+
+    loc_vars = function(self, info_queue, card)
+        local mult = (G.GAME and G.GAME.hex_ic1101_mult) or 1
+        local uses = (G.GAME and G.GAME.hex_ic1101_uses) or 0
+        return { vars = { mult, uses } }
+    end,
+
+    can_use = function(self, card)
+        if G.GAME and G.GAME.hex_astral_unlocked then return false end
+        if G.GAME and (G.GAME.hex_ic1101_uses or 0) >= 4 then return false end
+        return true
+    end,
+
+    use = function(self, card)
+        if G.GAME.hex_astral_unlocked then return end
+        if (G.GAME.hex_ic1101_uses or 0) >= 4 then return end
+
+        G.GAME.hex_ic1101_uses = (G.GAME.hex_ic1101_uses or 0) + 1
+        G.GAME.hex_ic1101_mult = ((G.GAME.hex_ic1101_mult or 1)) * 3
+
+        card_eval_status_text(card, "extra", nil, nil, nil, {
+            message = "X3 Sculptor",
+            colour = G.C.GALAXY
+        })
+    end,
+}
+
+
+
+
+
+
+
+
+-- Applies a stat operation (mult/pow/tetrate) to every registered poker
+-- hand's Chips and/or Mult at once -- same three ops (and the same
+-- to_big()/arrow() mechanics) hex_planet_apply_stat already uses for a
+-- single hand, and the same "loop over every G.GAME.hands entry"
+-- approach Polaris/Eclipse already use elsewhere in this file, just
+-- generalized to cover either stat, either op, and any factor.
+local function hex_nebula_apply_all_hands(stats, op, factor)
+    if not (G.GAME and G.GAME.hands) then return end
+
+    for _, hand in pairs(G.GAME.hands) do
+        for _, stat in ipairs(stats) do
+            local current = hand[stat]
+            if current then
+                if op == "mult" then
+                    hand[stat] = to_big(current) * big(factor)
+                elseif op == "pow" then
+                    hand[stat] = to_big(current):arrow(1, factor)
+                elseif op == "tetrate" then
+                    hand[stat] = to_big(current):arrow(2, factor)
+                end
+            end
+        end
+    end
+end
+
+-- args: key, name, atlas, pos, text, stats (list of "chips"/"mult"),
+-- op ("mult"/"pow"/"tetrate"), factor, status_message
+local function hex_make_nebula(args)
+    SMODS.Consumable{
+        key = args.key,
+        set = "nebula",
+
+        atlas = args.atlas or "HexNebulasBlackholes",
+        pos = args.pos,
+
+        unlocked = true,
+        discovered = true,
+
+        in_pool = function(self) return True end, -- never naturally generated (for now); must be granted directly
+
+        loc_txt = {
+            name = args.name,
+            text = args.text,
+        },
+
+        can_use = function(self, card)
+            return true
+        end,
+
+        use = function(self, card)
+            hex_nebula_apply_all_hands(args.stats, args.op, args.factor)
+
+            card_eval_status_text(card, "extra", nil, nil, nil, {
+                message = args.status_message,
+                colour = G.C.NEBULA
+            })
+        end,
+    }
+end
+
+
+
+hex_make_nebula{
+    key = "tarantula_nebula",
+    name = "Tarantula Nebula",
+    atlas = "HexNebulasBlackholes",
+    pos = { x = 0, y = 0 },
+    stats = { "chips", "mult" },
+    op = "mult",
+    factor = 1000,
+    text = {
+        "{C:chips}Chips{} and {C:mult}Mult{} of",
+        "every poker hand {C:attention}X1000{}",
+    },
+    status_message = "X1000 Chips/Mult",
+}
+
+hex_make_nebula{
+    key = "eagle_nebula",
+    name = "Eagle Nebula",
+    atlas = "HexNebulasBlackholes",
+    pos = { x = 0, y = 0 },
+    stats = { "mult" },
+    op = "mult",
+    factor = 10000,
+    text = {
+        "{C:mult}Mult{} of every",
+        "poker hand {C:mult}X10000{}",
+    },
+    status_message = "X10000 Mult",
+}
+
+hex_make_nebula{
+    key = "crab_nebula",
+    name = "Crab Nebula",
+    atlas = "HexNebulasBlackholes",
+    pos = { x = 0, y = 0 },
+    stats = { "chips" },
+    op = "mult",
+    factor = 10000,
+    text = {
+        "{C:chips}Chips{} of every",
+        "poker hand {C:chips}X10000{}",
+    },
+    status_message = "X10000 Chips",
+}
+
+hex_make_nebula{
+    key = "cygnus_loop_nebula",
+    name = "Cygnus Loop Nebula",
+    atlas = "HexNebulasBlackholes",
+    pos = { x = 0, y = 0 },
+    stats = { "chips", "mult" },
+    op = "pow",
+    factor = 7.5,
+    text = {
+        "{C:chips}Chips{} and {C:mult}Mult{} of",
+        "every poker hand {C:attention}^7.5{}",
+    },
+    status_message = "^7.5 Chips/Mult",
+}
+
+hex_make_nebula{
+    key = "lagoon_nebula",
+    name = "Lagoon Nebula",
+    atlas = "HexNebulasBlackholes",
+    pos = { x = 0, y = 0 },
+    stats = { "mult" },
+    op = "pow",
+    factor = 10,
+    text = {
+        "{C:mult}Mult{} of every",
+        "poker hand {C:mult}^10{}",
+    },
+    status_message = "^10 Mult",
+}
+
+hex_make_nebula{
+    key = "orion_nebula",
+    name = "Orion Nebula",
+    atlas = "HexNebulasBlackholes",
+    pos = { x = 0, y = 0 },
+    stats = { "chips" },
+    op = "pow",
+    factor = 10,
+    text = {
+        "{C:chips}Chips{} of every",
+        "poker hand {C:chips}^10{}",
+    },
+    status_message = "^10 Chips",
+}
+
+hex_make_nebula{
+    key = "ring_nebula",
+    name = "Ring Nebula",
+    atlas = "HexNebulasBlackholes",
+    pos = { x = 0, y = 0 },
+    stats = { "chips", "mult" },
+    op = "tetrate",
+    factor = 2,
+    text = {
+        "{C:chips}Chips{} and {C:mult}Mult{} of",
+        "every poker hand {C:attention}^^2{}",
+    },
+    status_message = "^^2 Chips/Mult",
+}
+
+hex_make_nebula{
+    key = "helix_nebula",
+    name = "Helix Nebula",
+    atlas = "HexNebulasBlackholes",
+    pos = { x = 0, y = 0 },
+    stats = { "mult" },
+    op = "tetrate",
+    factor = 2.5,
+    text = {
+        "{C:mult}Mult{} of every",
+        "poker hand {C:mult}^^2.5{}",
+    },
+    status_message = "^^2.5 Mult",
+}
+
+hex_make_nebula{
+    key = "butterfly_nebula",
+    name = "Butterfly Nebula",
+    atlas = "HexNebulasBlackholes",
+    pos = { x = 0, y = 0 },
+    stats = { "chips" },
+    op = "tetrate",
+    factor = 2.5,
+    text = {
+        "{C:chips}Chips{} of every",
+        "poker hand {C:chips}^^2.5{}",
+    },
+    status_message = "^^2.5 Chips",
+}
+
+
+
+
+
+SMODS.Consumable{
+    key = "exoplanet",
+    set = "astral",
+
+    atlas = "HexAstralsCosmics",
+    pos = { x = 0, y = 0 },
+
+    unlocked = true,
+    discovered = true,
+
+    in_pool = function(self)
+        return true -- never naturally generated; must be granted directly
+    end,
+
+    loc_txt = {
+        name = "Exoplanet",
+        text = {
+            "Creates {C:attention}2{} {C:dark_red}Negative{}",
+            "{C:purple}Nebula{} cards",
+        }
+    },
+
+    can_use = function(self, card)
+        return true
+    end,
+
+    use = function(self, card)
+        for i = 1, 2 do
+            G.E_MANAGER:add_event(Event({
+                trigger = "after",
+                delay = 0.2 * i,
+                func = function()
+                    if G.consumeables then
+                        local nebulas = hex_get_nebula_centers()
+                        if #nebulas > 0 then
+                            local chosen = nebulas[math.random(#nebulas)]
+
+                            local new_card = SMODS.create_card({
+                                key = chosen.key,
+                                area = G.consumeables
+                            })
+
+                            new_card:set_edition({ negative = true }, true)
+
+                            G.consumeables:emplace(new_card)
+                        end
+                    end
+                    return true
+                end
+            }))
+        end
+
+        card_eval_status_text(card, "extra", nil, nil, nil, {
+            message = "+2 Negative",
+            colour = G.C.ASTRAL
+        })
+    end,
+}
+
+
+SMODS.Consumable{
+    key = "brown_dwarf",
+    set = "astral",
+
+    atlas = "HexAstralsCosmics",
+    pos = { x = 0, y = 0 },
+
+    unlocked = true,
+    discovered = true,
+
+    in_pool = function(self)
+        return true -- never naturally generated; must be granted directly
+    end,
+
+    loc_txt = {
+        name = "Brown Dwarf",
+        text = {
+            "{C:money}X10{} your money",
+        }
+    },
+
+    can_use = function(self, card)
+        return true
+    end,
+
+    use = function(self, card)
+        G.GAME.dollars = math.floor((G.GAME.dollars or 0) * 10)
+
+        card_eval_status_text(card, "extra", nil, nil, nil, {
+            message = "X10 Money",
+            colour = G.C.ASTRAL
+        })
+    end,
+}
+
+
+SMODS.Consumable{
+    key = "white_dwarf",
+    set = "astral",
+
+    atlas = "HexAstralsCosmics",
+    pos = { x = 0, y = 0 },
+
+    unlocked = true,
+    discovered = true,
+
+    in_pool = function(self)
+        return true -- never naturally generated; must be granted directly
+    end,
+
+    loc_txt = {
+        name = "White Dwarf",
+        text = {
+            "Gain {C:purple}300{}",
+            "{C:purple}Hex points{}",
+            "{C:attention}-2{} hand size,",
+            "{C:attention}-2{} hands and",
+            "{C:attention}-2{} discards every round",
+        }
+    },
+
+    can_use = function(self, card)
+        return true
+    end,
+
+    use = function(self, card)
+        G.GAME.hex_points = (G.GAME.hex_points or big(0)) + big(300)
+
+        G.GAME.round_resets.hand_size = math.max(1, (G.GAME.round_resets.hand_size or 8) - 2)
+        G.GAME.round_resets.hands = math.max(1, (G.GAME.round_resets.hands or 4) - 2)
+        G.GAME.round_resets.discards = math.max(0, (G.GAME.round_resets.discards or 3) - 2)
+
+        if G.GAME.current_round then
+            G.GAME.current_round.hands_left = math.max(1, (G.GAME.current_round.hands_left or 0) - 2)
+            G.GAME.current_round.discards_left = math.max(0, (G.GAME.current_round.discards_left or 0) - 2)
+        end
+
+        -- Hand size shrink is applied to the live hand immediately, same
+        -- fixup Hard Deck's start_run hook uses -- trims the hand down to
+        -- the new limit, returning the excess cards to the deck.
+        if G.hand and G.hand.config then
+            G.hand.config.card_limit = math.max(1, G.hand.config.card_limit - 2)
+
+            if G.deck then
+                for i = #G.hand.cards, 1, -1 do
+                    if #G.hand.cards <= G.hand.config.card_limit then break end
+                    local c = G.hand:remove_card(G.hand.cards[i])
+                    if c then
+                        G.deck:emplace(c)
+                    end
+                end
+            end
+        end
+
+        card_eval_status_text(card, "extra", nil, nil, nil, {
+            message = "+300 Hex",
+            colour = G.C.ASTRAL
+        })
+    end,
+}
+
+SMODS.Consumable{
+    key = "neutron_star",
+    set = "astral",
+
+    atlas = "HexAstralsCosmics",
+    pos = { x = 0, y = 0 },
+
+    unlocked = true,
+    discovered = true,
+
+    in_pool = function(self)
+        return true -- never naturally generated; must be granted directly
+    end,
+
+    loc_txt = {
+        name = "Neutron Star",
+        text = {
+            "Gives {C:attention}1{} selected",
+            "playing card the",
+            "{C:blue}Diamond{} enhancement",
+        }
+    },
+
+    loc_vars = function(self, info_queue, card)
+        info_queue[#info_queue + 1] = G.P_CENTERS["m_" .. mod.prefix .. "_diamond"]
+        return { vars = {} }
+    end,
+
+    can_use = function(self, card)
+        return G.hand and G.hand.highlighted and #G.hand.highlighted == 1
+    end,
+
+    use = function(self, card)
+        if not (G.hand and G.hand.highlighted and G.hand.highlighted[1]) then return end
+
+        local target = G.hand.highlighted[1]
+        target:set_ability(G.P_CENTERS["m_" .. mod.prefix .. "_diamond"])
+
+        card_eval_status_text(target, "extra", nil, nil, nil, {
+            message = "Diamond!",
+            colour = G.C.ASTRAL
+        })
+    end,
+}
+
+SMODS.Consumable{
+    key = "quasars",
+    set = "astral",
+
+    atlas = "HexAstralsCosmics",
+    pos = { x = 0, y = 0 },
+
+    unlocked = true,
+    discovered = true,
+
+    in_pool = function(self)
+        return true -- never naturally generated; must be granted directly
+    end,
+
+    loc_txt = {
+        name = "Quasar",
+        text = {
+            "{C:attention}X10{} the chance for",
+            "{C:legendary}The Soul{} and {C:mythic}Heart{}",
+            "to appear in {C:tarot}Arcana{} and",
+            "{C:spectral}Spectral{} packs",
+            "{C:inactive}(Can only be used once){}",
+        }
+    },
+
+    can_use = function(self, card)
+        return not (G.GAME and G.GAME.hex_quasars_used)
+    end,
+
+    use = function(self, card)
+        if G.GAME.hex_quasars_used then return end
+        G.GAME.hex_quasars_used = true
+
+        local soul_center = G.P_CENTERS[HEX_SOUL_CENTER_KEY]
+        if soul_center and soul_center.soul_rate then
+            soul_center.soul_rate = soul_center.soul_rate * 10
+        end
+
+        local heart_center = G.P_CENTERS[HEX_HEART_CENTER_KEY]
+        if heart_center and heart_center.soul_rate then
+            heart_center.soul_rate = heart_center.soul_rate * 10
+        end
+
+        card_eval_status_text(card, "extra", nil, nil, nil, {
+            message = "X10 Soul/Heart",
+            colour = G.C.ASTRAL
+        })
+    end,
+}
+
+
+SMODS.Consumable{
+    key = "quark_star",
+    set = "astral",
+
+    atlas = "HexAstralsCosmics",
+    pos = { x = 0, y = 0 },
+
+    unlocked = true,
+    discovered = true,
+
+    in_pool = function(self)
+        return true -- never naturally generated; must be granted directly
+    end,
+
+    loc_txt = {
+        name = "Quark Star",
+        text = {
+            "Gain {C:attention}+2{} Joker slots",
+            "{C:inactive}(Can only be used once){}",
+        }
+    },
+
+    can_use = function(self, card)
+        return not (G.GAME and G.GAME.hex_quark_star_used)
+    end,
+
+    use = function(self, card)
+        if G.GAME.hex_quark_star_used then return end
+        G.GAME.hex_quark_star_used = true
+
+        if G.jokers and G.jokers.config then
+            G.jokers.config.card_limit = G.jokers.config.card_limit + 2
+        end
+
+        card_eval_status_text(card, "extra", nil, nil, nil, {
+            message = "+2 Slots",
+            colour = G.C.ASTRAL
+        })
+    end,
+}
+
+SMODS.Consumable{
+    key = "boson_star",
+    set = "astral",
+
+    atlas = "HexAstralsCosmics",
+    pos = { x = 0, y = 0 },
+
+    unlocked = true,
+    discovered = true,
+
+    in_pool = function(self)
+        return true -- never naturally generated; must be granted directly
+    end,
+
+    loc_txt = {
+        name = "Boson Star",
+        text = {
+            "Gain {C:purple}75{}",
+            "{C:purple}Hex points{}",
+        }
+    },
+
+    can_use = function(self, card)
+        return true
+    end,
+
+    use = function(self, card)
+        G.GAME.hex_points = (G.GAME.hex_points or big(0)) + big(75)
+
+        card_eval_status_text(card, "extra", nil, nil, nil, {
+            message = "+75 Hex",
+            colour = G.C.ASTRAL
+        })
+    end,
+}
+
+
+SMODS.Consumable{
+    key = "white_hole",
+    set = "astral",
+
+    atlas = "HexAstralsCosmics",
+    pos = { x = 0, y = 0 },
+
+    unlocked = true,
+    discovered = true,
+
+    in_pool = function(self)
+        return true -- never naturally generated; must be granted directly
+    end,
+
+    loc_txt = {
+        name = "White Hole",
+        text = {
+            "Gives a {C:attention}random{} Joker",
+            "{C:attention}without an Edition{}",
+            "the {C:purple}Radiant{} edition",
+        }
+    },
+
+    loc_vars = function(self, info_queue, card)
+        info_queue[#info_queue + 1] = G.P_CENTERS["e_" .. mod.prefix .. "_radiant"]
+        return { vars = {} }
+    end,
+
+    -- Shared helper so can_use and use always agree on what's eligible.
+    can_use = function(self, card)
+        if not (G.jokers and G.jokers.cards) then return false end
+
+        for _, j in ipairs(G.jokers.cards) do
+            if not j.edition then
+                return true
+            end
+        end
+
+        return false
+    end,
+
+    use = function(self, card)
+        if not (G.jokers and G.jokers.cards) then return end
+
+        local eligible = {}
+        for _, j in ipairs(G.jokers.cards) do
+            if not j.edition then
+                eligible[#eligible + 1] = j
+            end
+        end
+
+        if not eligible[1] then return end
+
+        local chosen_joker = pseudorandom_element(
+            eligible,
+            pseudoseed(mod.prefix .. "_white_hole_joker")
+        )
+
+        chosen_joker:set_edition({ [mod.prefix .. "_radiant"] = true }, true)
+
+        card_eval_status_text(chosen_joker, "extra", nil, nil, nil, {
+            message = localize("k_upgrade_ex"),
+            colour = G.C.ASTRAL
+        })
+    end,
+}
+
+
+
+-- Wormhole: permanently adds +1 to the number of cards shown in every
+-- booster pack opened (Arcana, Celestial, Spectral, Standard, Buffoon,
+-- and this mod's own Star/Galaxy packs alike), stacking with itself up
+-- to +10 total. self.ability.extra is the runtime field Card:open reads
+-- to know how many cards to generate for a given pack -- it's set at
+-- card-creation time from the Booster's own config.extra (the same field
+-- every SMODS.Booster{ config = { extra = N, ... } } registration in
+-- this file sets), so bumping it here, right before the original open()
+-- call runs, affects the pack about to be opened without needing to
+-- touch the Booster's own definition at all.
+local hex_old_card_open = Card.open
+
+function Card:open(...)
+    if self.ability and self.ability.set == "Booster" then
+        local bonus = (G.GAME and G.GAME.hex_wormhole_bonus) or 0
+        if bonus > 0 and self.ability.extra then
+            self.ability.extra = self.ability.extra + bonus
+        end
+    end
+
+    return hex_old_card_open(self, ...)
+end
+
+
+SMODS.Consumable{
+    key = "wormhole",
+    set = "astral",
+
+    atlas = "HexAstralsCosmics",
+    pos = { x = 0, y = 0 },
+
+    unlocked = true,
+    discovered = true,
+
+    in_pool = function(self)
+        return ((G.GAME and G.GAME.hex_wormhole_bonus) or 0) < 10
+    end,
+
+    loc_txt = {
+        name = "Wormhole",
+        text = {
+            "Permanently gain {C:attention}+1{}",
+            "card in every {C:attention}booster pack{}",
+            "{C:inactive}(Max of +10){}",
+            "{C:inactive}(Currently +#1#){}",
+        }
+    },
+
+    loc_vars = function(self, info_queue, card)
+        return { vars = { (G.GAME and G.GAME.hex_wormhole_bonus) or 0 } }
+    end,
+
+    can_use = function(self, card)
+        return ((G.GAME and G.GAME.hex_wormhole_bonus) or 0) < 10
+    end,
+
+    use = function(self, card)
+        if ((G.GAME and G.GAME.hex_wormhole_bonus) or 0) >= 10 then return end
+
+        G.GAME.hex_wormhole_bonus = (G.GAME.hex_wormhole_bonus or 0) + 1
+
+        card_eval_status_text(card, "extra", nil, nil, nil, {
+            message = "+1 Pack Size",
+            colour = G.C.ASTRAL
+        })
+    end,
+}
+
+
+
+
+-- ============================================================
+-- Cosmic cards
+-- Rarest tier -- like Astral cards, these never appear via shop_rate
+-- (0 on the "cosmic" ConsumableType above) or any create_card
+-- injection anywhere in this file; they only ever enter play if
+-- something (a future Joker/Voucher/Ritual, etc.) grants them
+-- directly.
+-- ============================================================
+
+SMODS.Consumable{
+    key = "shapley_supercluster",
+    set = "cosmic",
+
+    atlas = "HexAstralsCosmics",
+    pos = { x = 0, y = 2 },
+
+    unlocked = true,
+    discovered = true,
+
+    in_pool = function(self)
+        return true -- never naturally generated; must be granted directly
+    end,
+
+    loc_txt = {
+        name = "Shapley Supercluster",
+        text = {
+            "Gain {C:attention}+1{}",
+            "{C:attention}Joker slot{}",
+        }
+    },
+
+    can_use = function(self, card)
+        return true
+    end,
+
+    -- No "used" flag -- unlike Toi-125/Small Magellanic Cloud etc.,
+    -- this stays in the pool and can be used again every time you get
+    -- another copy, same reusable pattern as Arcturus (+1 consumable
+    -- slot) above.
+    use = function(self, card)
+        if G.jokers and G.jokers.config then
+            G.jokers.config.card_limit = G.jokers.config.card_limit + 1
+        end
+
+        card_eval_status_text(card, "extra", nil, nil, nil, {
+            message = "+1 Slot",
+            colour = G.C.COSMIC
+        })
+    end,
+}
+
+SMODS.Consumable{
+    key = "pisces_cetus_supercluster",
+    set = "cosmic",
+
+    atlas = "HexAstralsCosmics",
+    pos = { x = 0, y = 2 },
+
+    unlocked = true,
+    discovered = true,
+
+    in_pool = function(self)
+        return true -- never naturally generated; must be granted directly
+    end,
+
+    loc_txt = {
+        name = "Pisces-Cetus Supercluster",
+        text = {
+            "{C:purple}Doubles{} your",
+            "{C:purple}Hex points{}",
+            "{C:inactive}(Max gain of 303){}",
+        }
+    },
+
+    can_use = function(self, card)
+        return true
+    end,
+
+    -- Comparison/arithmetic operators on OmegaNum values already work
+    -- fine elsewhere in this file (e.g. the cost checks in
+    -- summon_transcendental/summon_divine), so this stays safe even
+    -- once Hex points scale well past double-precision range.
+    use = function(self, card)
+        local current = (G.GAME and G.GAME.hex_points) or big(0)
+        local cap = big(303)
+
+        local gain = current
+        if current > cap then
+            gain = cap
+        end
+
+        G.GAME.hex_points = current + gain
+
+        card_eval_status_text(card, "extra", nil, nil, nil, {
+            message = "+" .. tostring(gain) .. " Hex",
+            colour = G.C.COSMIC
+        })
+    end,
+}
+
+SMODS.Consumable{
+    key = "giant_grb_ring",
+    set = "cosmic",
+
+    atlas = "HexAstralsCosmics",
+    pos = { x = 0, y = 2},
+
+    unlocked = true,
+    discovered = true,
+
+    in_pool = function(self)
+        return true -- never naturally generated; must be granted directly
+    end,
+
+    loc_txt = {
+        name = "Giant GRB Ring",
+        text = {
+            "Destroys {C:attention}3{} random",
+            "owned Jokers",
+            "Gain {C:purple}1000{}",
+            "{C:purple}Hex points{}",
+        }
+    },
+
+    -- Reuses hex_andromeda_eligible_jokers (defined above under the
+    -- Galaxy cards / Andromeda section) so Eternal Jokers and anything
+    -- carrying the Immortal sticker (i.e. Absolute) can never be
+    -- destroyed by this either.
+    can_use = function(self, card)
+        return #hex_andromeda_eligible_jokers() > 0
+    end,
+
+    use = function(self, card)
+        local eligible = hex_andromeda_eligible_jokers()
+
+        -- Destroys up to 3 -- fewer if there aren't 3 eligible Jokers
+        -- to pick from, same "take what's available" fallback used
+        -- elsewhere in this file rather than failing outright.
+        local to_destroy = {}
+        for i = 1, math.min(3, #eligible) do
+            local pick = pseudorandom_element(eligible, pseudoseed(mod.prefix .. "_grb_ring_" .. i))
+            to_destroy[#to_destroy + 1] = pick
+
+            for j, c in ipairs(eligible) do
+                if c == pick then
+                    table.remove(eligible, j)
+                    break
+                end
+            end
+        end
+
+        for i, j in ipairs(to_destroy) do
+            G.E_MANAGER:add_event(Event({
+                trigger = "after",
+                delay = 0.15 * i,
+                func = function()
+                    j:start_dissolve()
+                    return true
+                end
+            }))
+        end
+
+        G.GAME.hex_points = (G.GAME.hex_points or big(0)) + big(1000)
+
+        card_eval_status_text(card, "extra", nil, nil, nil, {
+            message = "+1000 Hex",
+            colour = G.C.COSMIC
+        })
+    end,
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9609,13 +11368,7 @@ function Card:click()
                                     target:set_sprites(target.config and target.config.center, new_front)
                                 end
                             end
-                        else
-                            print("[hex] star pick: no G.P_CARDS entry for key '" .. tostring(new_key) .. "'")
                         end
-                    else
-                        print("[hex] star pick: could not resolve suit/rank letters for target card (suit="
-                            .. tostring(target.base and target.base.suit) .. ", value="
-                            .. tostring(target.base and target.base.value) .. ")")
                     end
                 end
             end
@@ -10034,10 +11787,19 @@ function Game:start_run(...)
     G.GAME.hex_vy_unlocked = G.GAME.hex_vy_unlocked or false
     G.GAME.hex_vy_used = G.GAME.hex_vy_used or false
     G.GAME.hex_nova_unlocked = G.GAME.hex_nova_unlocked or false
+    G.GAME.hex_cosmic_rays_unlocked = G.GAME.hex_cosmic_rays_unlocked or false
     G.GAME.hex_pinwheel_bonus_limit = G.GAME.hex_pinwheel_bonus_limit or 0
+    G.GAME.hex_whirlpool_bonus_levels = G.GAME.hex_whirlpool_bonus_levels or 0
     G.GAME.hex_reach_bonus_limit = G.GAME.hex_reach_bonus_limit or 0
     G.GAME.hex_negative_bunch_unlocked = G.GAME.hex_negative_bunch_unlocked or false
     G.GAME.hex_negative_cluster_unlocked = G.GAME.hex_negative_cluster_unlocked or false
+    G.GAME.hex_quasars_used = G.GAME.hex_quasars_used or false
+    G.GAME.hex_quark_star_used = G.GAME.hex_quark_star_used or false
+    G.GAME.hex_astral_unlocked = G.GAME.hex_astral_unlocked or false
+    G.GAME.hex_ic1101_mult = G.GAME.hex_ic1101_mult or 1
+    G.GAME.hex_ic1101_uses = G.GAME.hex_ic1101_uses or 0
+    G.GAME.hex_wormhole_bonus = G.GAME.hex_wormhole_bonus or 0
+
 
     -- Re-apply the hyperoperator scoring calculation on resume/load, since
     -- G.GAME.current_scoring_calculation_key isn't guaranteed to survive it.
@@ -10208,20 +11970,15 @@ end
 
 G.FUNCS.create_ritual = function()
 
-    print("CREATE RITUAL PRESSED")
-
-
     if not G.GAME then return end
 
 
     if (G.GAME.hex_points or big(0)) < big(100) then
-        print("NO HEX")
         return
     end
 
 
     if #G.consumeables.cards >= G.consumeables.config.card_limit then
-        print("NO SLOT")
         return
     end
 
@@ -10257,7 +12014,6 @@ G.FUNCS.create_ritual = function()
     end
 
     if #rituals == 0 then
-        print("ALL RITUALS ALREADY SUMMONED")
         return
     end
 
@@ -10266,7 +12022,6 @@ G.FUNCS.create_ritual = function()
         pseudoseed("ritual")
     )
 
-    print("TRYING "..chosen)
 
     -- Mark it summoned immediately, before the card even materializes,
     -- so it can't be rolled again while it's sitting unused. Skipped
@@ -10318,12 +12073,10 @@ G.FUNCS.summon_transcendental = function()
     local cost = big(1000)
 
     if (G.GAME.hex_points or big(0)) < cost then
-        print("NOT ENOUGH HEX POINTS")
         return
     end
 
     if #G.jokers.cards >= G.jokers.config.card_limit then
-        print("NO JOKER SLOT")
         return
     end
 
@@ -10338,7 +12091,6 @@ G.FUNCS.summon_transcendental = function()
     end
 
     if #transcendental_jokers == 0 then
-        print("NO TRANSCENDENTAL JOKERS AVAILABLE (already owned)")
         return
     end
 
@@ -10379,12 +12131,10 @@ G.FUNCS.summon_divine = function()
     local cost = big(10000)
 
     if (G.GAME.hex_points or big(0)) < cost then
-        print("NOT ENOUGH HEX POINTS")
         return
     end
 
     if #G.jokers.cards >= G.jokers.config.card_limit then
-        print("NO JOKER SLOT")
         return
     end
 
@@ -10400,7 +12150,6 @@ G.FUNCS.summon_divine = function()
     end
 
     if #divine_jokers == 0 then
-        print("NO DIVINE JOKERS AVAILABLE (already owned)")
         return
     end
 
@@ -10443,19 +12192,16 @@ G.FUNCS.summon_absolute = function()
     -- calls this is only created once the flag is set anyway, but this
     -- guard is kept in case something else ever calls it directly.
     if not G.GAME.hex_inaccessible_unlocked then
-        print("ABSOLUTE SUMMON NOT UNLOCKED")
         return
     end
 
     if G.GAME.hex_absolute_summoned then
-        print("ABSOLUTE ALREADY SUMMONED")
         return
     end
 
     local cost = big(1.0e21)
 
     if (G.GAME.hex_points or big(0)) < cost then
-        print("NOT ENOUGH HEX POINTS")
         return
     end
 
@@ -10463,7 +12209,6 @@ G.FUNCS.summon_absolute = function()
     -- Showman -- Showman only affects normal-rarity Jokers -- so this
     -- guard is unconditional and doesn't check hex_has_showman().
     if hex_owns_joker("j_" .. mod.prefix .. "_absolute") then
-        print("ABSOLUTE ALREADY OWNED")
         return
     end
 
