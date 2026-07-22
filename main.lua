@@ -3668,6 +3668,29 @@ local function hex_get_astral_centers()
     return out
 end
 
+local HEX_COSMIC_IN_PACK_CHANCE = 1 / 33
+
+local function hex_get_cosmic_centers()
+    local out = {}
+    local showman = hex_owns_showman()
+
+    for _, center in pairs(G.P_CENTERS) do
+        if center.set == "cosmic" then
+            local skip = false
+
+            if not showman and hex_consumable_already_owned(center.key) then
+                skip = true
+            end
+
+            if not skip then
+                out[#out + 1] = center
+            end
+        end
+    end
+
+    return out
+end
+
 
 
 -- Base chance for an individual shop consumable slot to be replaced with
@@ -5813,6 +5836,14 @@ SMODS.Booster{
 
         local chosen_key = nil
 
+        if G.GAME and G.GAME.hex_cosmic_unlocked
+        and pseudorandom(pseudoseed(mod.prefix .. "_star_pack_cosmic")) < HEX_COSMIC_IN_PACK_CHANCE then
+            local cosmics = hex_filter_already_picked(hex_get_cosmic_centers(), card.hex_star_pack_picked)
+            if #cosmics > 0 then
+                chosen_key = cosmics[math.random(#cosmics)].key
+            end
+        end
+
         if G.GAME and G.GAME.hex_astral_unlocked
         and pseudorandom(pseudoseed(mod.prefix .. "_star_pack_astral")) < HEX_ASTRAL_IN_PACK_CHANCE then
             local astrals = hex_filter_already_picked(hex_get_astral_centers(), card.hex_star_pack_picked)
@@ -5893,6 +5924,14 @@ SMODS.Booster{
 
         local chosen_key = nil
 
+        if G.GAME and G.GAME.hex_cosmic_unlocked
+        and pseudorandom(pseudoseed(mod.prefix .. "_star_pack_cosmic")) < HEX_COSMIC_IN_PACK_CHANCE then
+            local cosmics = hex_filter_already_picked(hex_get_cosmic_centers(), card.hex_star_pack_picked)
+            if #cosmics > 0 then
+                chosen_key = cosmics[math.random(#cosmics)].key
+            end
+        end
+
         if G.GAME and G.GAME.hex_astral_unlocked
         and pseudorandom(pseudoseed(mod.prefix .. "_star_pack_astral")) < HEX_ASTRAL_IN_PACK_CHANCE then
             local astrals = hex_filter_already_picked(hex_get_astral_centers(), card.hex_star_pack_picked)
@@ -5970,6 +6009,14 @@ SMODS.Booster{
 
         local chosen_key = nil
 
+        if G.GAME and G.GAME.hex_cosmic_unlocked
+        and pseudorandom(pseudoseed(mod.prefix .. "_star_pack_cosmic")) < HEX_COSMIC_IN_PACK_CHANCE then
+            local cosmics = hex_filter_already_picked(hex_get_cosmic_centers(), card.hex_star_pack_picked)
+            if #cosmics > 0 then
+                chosen_key = cosmics[math.random(#cosmics)].key
+            end
+        end
+
         if G.GAME and G.GAME.hex_astral_unlocked
         and pseudorandom(pseudoseed(mod.prefix .. "_star_pack_astral")) < HEX_ASTRAL_IN_PACK_CHANCE then
             local astrals = hex_filter_already_picked(hex_get_astral_centers(), card.hex_star_pack_picked)
@@ -6036,6 +6083,14 @@ local function hex_galaxy_pack_create_card(card, i)
     card.hex_galaxy_pack_picked = card.hex_galaxy_pack_picked or {}
 
     local chosen_key = nil
+
+    if G.GAME and G.GAME.hex_cosmic_unlocked
+    and pseudorandom(pseudoseed(mod.prefix .. "_galaxy_pack_cosmic")) < HEX_COSMIC_IN_PACK_CHANCE then
+        local cosmics = hex_filter_already_picked(hex_get_cosmic_centers(), card.hex_galaxy_pack_picked)
+        if #cosmics > 0 then
+            chosen_key = cosmics[math.random(#cosmics)].key
+        end
+    end
 
     if G.GAME and G.GAME.hex_astral_unlocked
     and pseudorandom(pseudoseed(mod.prefix .. "_galaxy_pack_astral")) < HEX_ASTRAL_IN_PACK_CHANCE then
@@ -9504,6 +9559,112 @@ SMODS.Consumable{
         })
     end,
 }
+
+
+
+-- Planck Star: a one-time-use unlock card, mirroring Sculptor Galaxy's
+-- own Astral-unlock pattern and Toi-125/Small Magellanic Cloud's own
+-- "removed from the pool after use" pattern. Using it permanently
+-- unlocks Cosmic cards (see hex_get_cosmic_centers and the Star/Galaxy
+-- Pack create_card hooks below for how they actually enter play) at a
+-- steep, immediate cost -- and Planck Star itself is removed from the
+-- Astral pool for the rest of the run the moment it's used.
+SMODS.Consumable{
+    key = "planck_star",
+    set = "astral",
+
+    atlas = "HexAstralsCosmics",
+    pos = { x = 0, y = 0 }, -- next open frame in the atlas; adjust if taken
+
+    unlocked = true,
+    discovered = true,
+
+    in_pool = function(self)
+        return not (G.GAME and G.GAME.hex_planck_star_used)
+    end,
+
+    loc_txt = {
+        name = "Planck Star",
+        text = {
+            "Unlocks {C:cosmic}Cosmic{} cards",
+            "{C:attention}-3{} hand size, {C:attention}-3{} hands",
+            "and {C:attention}-3{} discards every round",
+            "{C:attention}-3{} Joker slots",
+            "Sets {C:money}money{} to {C:money}$0{}",
+            "{C:inactive}This card can't appear{}",
+            "{C:inactive}again after being used{}",
+        }
+    },
+
+    -- Requires at least 3 *empty* Joker slots (so shrinking the limit by
+    -- 3 can never leave you with more Jokers than slots), and requires
+    -- the total slot count to be more than 3 to begin with (so the
+    -- limit can never be reduced down to 0 or below).
+    can_use = function(self, card)
+        if not (G.jokers and G.jokers.config) then return false end
+
+        local total = G.jokers.config.card_limit or 0
+        local owned = #G.jokers.cards
+
+        return total > 3 and (total - owned) >= 3
+    end,
+    
+    use = function(self, card)
+        G.GAME.hex_planck_star_used = true
+        G.GAME.hex_cosmic_unlocked = true
+
+        -- Hand size / hands / discards every round -- same round_resets +
+        -- current_round pairing White Dwarf's own -2/-2/-2 penalty uses
+        -- above, just -3 each and with a hard floor so nothing goes
+        -- unplayable.
+        G.GAME.round_resets.hand_size = math.max(1, (G.GAME.round_resets.hand_size or 8) - 3)
+        G.GAME.round_resets.hands = math.max(1, (G.GAME.round_resets.hands or 4) - 3)
+        G.GAME.round_resets.discards = math.max(0, (G.GAME.round_resets.discards or 3) - 3)
+
+        if G.GAME.current_round then
+            G.GAME.current_round.hands_left = math.max(1, (G.GAME.current_round.hands_left or 0) - 3)
+            G.GAME.current_round.discards_left = math.max(0, (G.GAME.current_round.discards_left or 0) - 3)
+        end
+
+        -- Hand size shrink applied to the live hand immediately, same
+        -- fixup Hard Deck/White Dwarf use -- trims the hand down to the
+        -- new limit, returning the excess cards to the deck.
+        if G.hand and G.hand.config then
+            G.hand.config.card_limit = math.max(1, G.hand.config.card_limit - 3)
+
+            if G.deck then
+                for i = #G.hand.cards, 1, -1 do
+                    if #G.hand.cards <= G.hand.config.card_limit then break end
+                    local c = G.hand:remove_card(G.hand.cards[i])
+                    if c then
+                        G.deck:emplace(c)
+                    end
+                end
+            end
+        end
+
+        -- Joker slots -- floored at 1 so this can never fully lock you
+        -- out of having a Joker.
+        if G.jokers and G.jokers.config then
+            G.jokers.config.card_limit = math.max(1, G.jokers.config.card_limit - 3)
+        end
+
+        -- Money
+        G.GAME.dollars = 0
+
+        card_eval_status_text(card, "extra", nil, nil, nil, {
+            message = "Cosmics Unlocked!",
+            colour = G.C.COSMIC
+        })
+    end,
+}
+
+
+
+
+
+
+
 
 
 
