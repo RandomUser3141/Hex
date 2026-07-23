@@ -751,6 +751,48 @@ SMODS.PokerHand{
 
 G.HEX_REAL_SCORING = false
 
+
+
+
+-- N of a Kind / Flush N of a Kind recompute their own base chips/mult
+-- every play (see hex_apply_dynamic_n_hand below), which silently
+-- discarded any permanent boost from Nebula/Black Hole cards, Planet
+-- stat cards, Polaris, or Eclipse -- all of those write straight to
+-- G.GAME.hands[key].chips/.mult, and the next time the hand was
+-- played, hex_apply_dynamic_n_hand overwrote it right back to n*base
+-- as if the boost never happened. Every mutation site now routes
+-- through hex_set_hand_stat, which for these two hands specifically
+-- records the ratio as a persistent multiplier that gets folded back
+-- in on every recompute.
+local HEX_DYNAMIC_N_HAND_KEYS = {
+    [mod.prefix .. "_n_of_a_kind"] = true,
+    [mod.prefix .. "_flush_n"] = true,
+}
+
+local function hex_set_hand_stat(hand_key, stat, new_value)
+    local hand = G.GAME and G.GAME.hands and G.GAME.hands[hand_key]
+    if not hand then return end
+
+    local old_value = hand[stat]
+    hand[stat] = new_value
+
+    if HEX_DYNAMIC_N_HAND_KEYS[hand_key] then
+        local old_big = to_big(old_value or 0)
+        if old_big > big(0) then
+            local ratio = to_big(new_value) / old_big
+            G.GAME.hex_dynamic_hand_mult = G.GAME.hex_dynamic_hand_mult or {}
+            G.GAME.hex_dynamic_hand_mult[hand_key] = G.GAME.hex_dynamic_hand_mult[hand_key] or {}
+            G.GAME.hex_dynamic_hand_mult[hand_key][stat] =
+                (G.GAME.hex_dynamic_hand_mult[hand_key][stat] or big(1)) * ratio
+        end
+    end
+end
+
+
+
+
+
+
 local function hex_biggest_rank_group(hand)
     local groups = {}
 
@@ -784,9 +826,15 @@ local function hex_apply_dynamic_n_hand(key, n, chips_per_n, mult_per_n)
     local level = hand_info.level or 1
     local extra_levels = math.max(0, level - 1)
 
-    hand_info.chips = n * chips_per_n + extra_levels * (hand_info.l_chips or 0)
-    hand_info.mult = n * mult_per_n + extra_levels * (hand_info.l_mult or 0)
+    local base_chips = n * chips_per_n + extra_levels * (hand_info.l_chips or 0)
+    local base_mult = n * mult_per_n + extra_levels * (hand_info.l_mult or 0)
+
+    local bonus = (G.GAME.hex_dynamic_hand_mult and G.GAME.hex_dynamic_hand_mult[key]) or {}
+
+    hand_info.chips = to_big(base_chips) * (bonus.chips or big(1))
+    hand_info.mult = to_big(base_mult) * (bonus.mult or big(1))
 end
+
 
 SMODS.PokerHand{
     key = "n_of_a_kind",
@@ -990,11 +1038,11 @@ local function hex_planet_apply_stat(hand_key, stat, op, factor)
     if not current then return end
 
     if op == "mult" then
-        hand[stat] = to_big(current) * big(factor)
+        hex_set_hand_stat(hand_key, stat, to_big(current) * big(factor))
     elseif op == "pow" then
-        hand[stat] = to_big(current):arrow(1, factor)
+        hex_set_hand_stat(hand_key, stat, to_big(current):arrow(1, factor))
     elseif op == "tetrate" then
-        hand[stat] = to_big(current):arrow(2, factor)
+        hex_set_hand_stat(hand_key, stat, to_big(current):arrow(2, factor))
     end
 end
 
@@ -3760,7 +3808,34 @@ end
 
 
 
+-- List of every Enhancement key allowed to appear as a random "Enhanced"
+-- playing card in the shop (the slot type Magic Trick/Illusion unlock).
+-- Every vanilla enhancement, plus this mod's own Bronze -- Crystal/
+-- Platinum/Ruby/Sapphire/Topaz/Diamond are deliberately excluded here,
+-- on top of their own in_pool = false, so this exact shop slot can never
+-- pick them.
+local HEX_SHOP_ENHANCED_ALLOWED = {
+    "m_bonus",
+    "m_mult",
+    "m_wild",
+    "m_glass",
+    "m_steel",
+    "m_stone",
+    "m_gold",
+    "m_lucky",
+    "m_" .. mod.prefix .. "_bronze",
+}
 
+local function hex_pick_shop_enhanced_key()
+    local candidates = {}
+    for _, key in ipairs(HEX_SHOP_ENHANCED_ALLOWED) do
+        if G.P_CENTERS[key] then
+            candidates[#candidates + 1] = key
+        end
+    end
+    if #candidates == 0 then return nil end
+    return candidates[math.random(#candidates)]
+end
 
 
 
@@ -3771,35 +3846,83 @@ end
 -- of HEX_STAR_PACK_CHANCE (packs show several cards at once; the shop
 -- only ever has a couple of consumable slots showing at any moment), so
 -- tune this on its own if Star cards feel too rare/common in the shop.
-local HEX_STAR_SHOP_CHANCE = 1 / 14
+local HEX_STAR_SHOP_CHANCE = 1 / 10
+
+
+
+
+-- Hypernova: intercept at the moment a card is actually added to the
+-- shop's consumable/joker row, rather than trying to catch it inside
+-- create_card -- shop consumable slots don't necessarily route through
+-- our create_card hook the same way other card creation does, so
+-- hooking CardArea:emplace directly is the reliable point that catches
+-- a Tarot/Planet/Spectral card no matter how it was actually built.
+local old_cardarea_emplace_hypernova = CardArea.emplace
+
+function CardArea:emplace(card, ...)
+    if self == G.shop_jokers
+    and card and card.ability and card.ability.set
+    and (card.ability.set == "Tarot" or card.ability.set == "Planet" or card.ability.set == "Spectral")
+    and G.GAME and G.GAME.hex_hypernova_unlocked
+    and pseudorandom(pseudoseed(mod.prefix .. "_hypernova_shop")) < HEX_STAR_SHOP_CHANCE then
+
+        local stars = hex_get_star_centers()
+        if #stars > 0 then
+            local chosen_key = stars[math.random(#stars)].key
+            local chosen_center = G.P_CENTERS[chosen_key]
+
+            if chosen_center then
+                card:set_ability(chosen_center, true)
+
+                if card.set_cost then
+                    card:set_cost()
+                end
+            end
+        end
+    end
+
+    return old_cardarea_emplace_hypernova(self, card, ...)
+end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 local old_create_card = create_card
 
 function create_card(_type, area, legendary, _rarity, skip_materialize, soulable, forced_key, key_append)
 
-    -- Hypernova: an individual shop consumable slot has a flat chance to
-    -- be forced into a random Star card instead of whatever it would
-    -- have naturally rolled (Tarot/Planet/Spectral). Gated on
-    -- hex_hypernova_unlocked and `not forced_key` (so this never
-    -- overrides something already forced by another source), and only
-    -- applies to G.shop_jokers -- the shared area vanilla uses for both
-    -- shop Jokers and shop consumables -- so Joker shop slots are
-    -- naturally untouched (Star's own `_type` check below only ever
-    -- matches Tarot/Planet/Spectral generation, never "Joker").
-    if area == G.shop_jokers
-    and (_type == "Tarot" or _type == "Planet" or _type == "Spectral")
+    -- Magic Trick / Illusion: the shop's random "Enhanced" playing-card
+    -- slot arrives here with _type == nil, area == the shop area, and no
+    -- forced_key -- vanilla/Steamodded would otherwise poll a random
+    -- Enhancement center itself for this, which is exactly what's
+    -- crashing. Handing it an explicit key from our own safe list avoids
+    -- that poll entirely, and guarantees only Bronze (plus vanilla
+    -- enhancements) can ever show up here.
+    if _type == nil
+    and area == G.shop_jokers
     and not forced_key
-    and G.GAME and G.GAME.hex_hypernova_unlocked
-    and pseudorandom(pseudoseed(mod.prefix .. "_hypernova_shop")) < HEX_STAR_SHOP_CHANCE then
-
-        local stars = hex_get_star_centers()
-        if #stars > 0 then
-            forced_key = stars[math.random(#stars)].key
-        end
+    and not legendary
+    and not _rarity then
+        forced_key = hex_pick_shop_enhanced_key()
     end
+ 
     
-
 
     -- Galaxy cards get first crack at a Spectral/Tarot pack slot (1 in
     -- 50 -- rarer than Star's 1 in 33 checked right after it). Both
@@ -5066,7 +5189,7 @@ SMODS.Joker{
         text = {
             "This Joker gains {X:mult,C:white}X0.25{} Mult",
             "every bonus card scored",
-            "{C:inactive}(Currently {}{X:mult,C:white}X#1#{}{C:inactive} Mult){}"
+            "{C:inactive}(Currently {}{X:mult,C:white}X#1#{}{C:inactive} Mult)"
         }
     },
     config = { extra = { Xmult = big(1), Xmult_gain = big(0.25) } },
@@ -6513,6 +6636,7 @@ end
 SMODS.Consumable{
     key = "sol",
     set = "star",
+    cost = 4, 
 
     atlas = "HexStarsGalaxies",
     pos = { x = 0, y = 0 },
@@ -6572,6 +6696,7 @@ SMODS.Consumable{
 SMODS.Consumable{
     key = "sirius",
     set = "star",
+    cost = 4, 
 
     atlas = "HexStarsGalaxies",
     pos = { x = 1, y = 0 }, -- placeholder art slot, next open frame after Sol; move if a dedicated sprite exists
@@ -6620,6 +6745,7 @@ SMODS.Consumable{
 SMODS.Consumable{
     key = "deneb",
     set = "star",
+    cost = 4, 
 
     atlas = "HexStarsGalaxies",
     pos = { x = 2, y = 0 }, -- placeholder art slot, next open frame after Sirius; move if a dedicated sprite exists
@@ -6661,6 +6787,7 @@ SMODS.Consumable{
 SMODS.Consumable{
     key = "pollux",
     set = "star",
+    cost = 4, 
 
     atlas = "HexStarsGalaxies",
     pos = { x = 3, y = 0 }, -- placeholder art slot, next open frame after Deneb; move if a dedicated sprite exists
@@ -6705,6 +6832,7 @@ SMODS.Consumable{
 SMODS.Consumable{
     key = "castor",
     set = "star",
+    cost = 4, 
 
     atlas = "HexStarsGalaxies",
     pos = { x = 4, y = 0 }, -- placeholder art slot, next open frame after Pollux; move if a dedicated sprite exists
@@ -6751,6 +6879,7 @@ SMODS.Consumable{
 SMODS.Consumable{
     key = "fomalhaut",
     set = "star",
+    cost = 4, 
 
     atlas = "HexStarsGalaxies",
     pos = { x = 5, y = 0 }, -- placeholder art slot, next open frame after Castor; move if a dedicated sprite exists
@@ -6807,6 +6936,7 @@ SMODS.Consumable{
 SMODS.Consumable{
     key = "saiph",
     set = "star",
+    cost = 4, 
 
     atlas = "HexStarsGalaxies",
     pos = { x = 6, y = 0 }, -- placeholder art slot, next open frame after Fomalhaut; move if a dedicated sprite exists
@@ -6851,6 +6981,7 @@ SMODS.Consumable{
 SMODS.Consumable{
     key = "spica",
     set = "star",
+    cost = 4, 
 
     atlas = "HexStarsGalaxies",
     pos = { x = 7, y = 0 }, -- placeholder art slot, next open frame after Saiph; move if a dedicated sprite exists
@@ -6893,6 +7024,7 @@ SMODS.Consumable{
 SMODS.Consumable{
     key = "vega",
     set = "star",
+    cost = 4, 
 
     atlas = "HexStarsGalaxies",
     pos = { x = 8, y = 0 }, -- placeholder art slot, next open frame after Spica; move if a dedicated sprite exists
@@ -6945,6 +7077,7 @@ SMODS.Consumable{
 SMODS.Consumable{
     key = "canopus",
     set = "star",
+    cost = 4, 
 
     atlas = "HexStarsGalaxies",
     pos = { x = 9, y = 0 },
@@ -6990,6 +7123,7 @@ SMODS.Consumable{
 SMODS.Consumable{
     key = "toliman",
     set = "star",
+    cost = 4, 
 
     atlas = "HexStarsGalaxies",
     pos = { x = 0, y = 1 },
@@ -7036,6 +7170,7 @@ SMODS.Consumable{
 SMODS.Consumable{
     key = "rigil_kentaurus",
     set = "star",
+    cost = 4, 
 
     atlas = "HexStarsGalaxies",
     pos = { x = 1, y = 1 },
@@ -7311,6 +7446,7 @@ end
 SMODS.Consumable{
     key = "proxima_centauri",
     set = "star",
+    cost = 4, 
 
     atlas = "HexStarsGalaxies",
     pos = { x = 2, y = 1 }, -- next open frame in the atlas, after Rigil Kentaurus (1,1)
@@ -7370,6 +7506,7 @@ SMODS.Consumable{
 SMODS.Consumable{
     key = "barnards_star",
     set = "star",
+    cost = 4, 
 
     atlas = "HexStarsGalaxies",
     pos = { x = 3, y = 1 }, -- next open frame in the atlas, after Proxima Centauri (2,1)
@@ -7453,6 +7590,7 @@ SMODS.Consumable{
 SMODS.Consumable{
     key = "bellatrix",
     set = "star",
+    cost = 4, 
 
     atlas = "HexStarsGalaxies",
     pos = { x = 4, y = 1 }, -- next open frame in the atlas, after Barnard's Star (3,1)
@@ -7498,6 +7636,7 @@ SMODS.Consumable{
 SMODS.Consumable{
     key = "cappella",
     set = "star",
+    cost = 4, 
 
     atlas = "HexStarsGalaxies",
     pos = { x = 5, y = 1 }, -- next open frame in the atlas, after Bellatrix (4,1)
@@ -7557,6 +7696,7 @@ SMODS.Consumable{
 SMODS.Consumable{
     key = "rigel",
     set = "star",
+    cost = 4, 
 
     atlas = "HexStarsGalaxies",
     pos = { x = 6, y = 1 },
@@ -7626,6 +7766,7 @@ SMODS.Consumable{
 SMODS.Consumable{
     key = "arcturus",
     set = "star",
+    cost = 4, 
 
     atlas = "HexStarsGalaxies",
     pos = { x = 7, y = 1 },
@@ -7676,6 +7817,7 @@ SMODS.Consumable{
 SMODS.Consumable{
     key = "procyon",
     set = "star",
+    cost = 4, 
 
     atlas = "HexStarsGalaxies",
     pos = { x = 8, y = 1 },
@@ -7722,6 +7864,7 @@ SMODS.Consumable{
 SMODS.Consumable{
     key = "polaris",
     set = "star",
+    cost = 4, 
 
     atlas = "HexStarsGalaxies",
     pos = { x = 9, y = 1 },
@@ -7749,12 +7892,12 @@ SMODS.Consumable{
     use = function(self, card)
         
         if G.GAME and G.GAME.hands then
-            for _, hand in pairs(G.GAME.hands) do
+            for hand_key, hand in pairs(G.GAME.hands) do
                 if hand.chips then
-                    hand.chips = to_big(hand.chips):arrow(1, 1.25)
+                    hex_set_hand_stat(hand_key, "chips", to_big(hand.chips):arrow(1, 1.25))
                 end
                 if hand.mult then
-                    hand.mult = to_big(hand.mult):arrow(1, 1.25)
+                    hex_set_hand_stat(hand_key, "mult", to_big(hand.mult):arrow(1, 1.25))
                 end
             end
         end
@@ -7770,6 +7913,7 @@ SMODS.Consumable{
 SMODS.Consumable{
     key = "betelgeuse",
     set = "star",
+    cost = 4, 
 
     atlas = "HexStarsGalaxies",
     pos = { x = 0, y = 2 }, -- next open row in the atlas, after Polaris (9,1)
@@ -7827,6 +7971,7 @@ SMODS.Consumable{
 SMODS.Consumable{
     key = "antares",
     set = "star",
+    cost = 4, 
 
     atlas = "HexStarsGalaxies",
     pos = { x = 1, y = 2 }, -- next open frame in the atlas, after Betelgeuse (0,2)
@@ -7880,6 +8025,7 @@ SMODS.Consumable{
 SMODS.Consumable{
     key = "altair",
     set = "star",
+    cost = 4, 
 
     atlas = "HexStarsGalaxies",
     pos = { x = 2, y = 2 },
@@ -7929,6 +8075,7 @@ SMODS.Consumable{
 SMODS.Consumable{
     key = "pistol_star",
     set = "star",
+    cost = 4, 
 
     atlas = "HexStarsGalaxies",
     pos = { x = 3, y = 2 },
@@ -7980,6 +8127,7 @@ SMODS.Consumable{
 SMODS.Consumable{
     key = "toi_125",
     set = "star",
+    cost = 4, 
 
     atlas = "HexStarsGalaxies",
     pos = { x = 4, y = 2 },
@@ -8022,6 +8170,7 @@ SMODS.Consumable{
 SMODS.Consumable{
     key = "vy_canis_majoris",
     set = "star",
+    cost = 4, 
 
     atlas = "HexStarsGalaxies",
     pos = { x = 5, y = 2 },
@@ -8059,6 +8208,8 @@ SMODS.Consumable{
         })
     end,
 }
+
+
 
 -- ============================================================
 -- Galaxy cards
@@ -9050,7 +9201,8 @@ SMODS.Consumable{
 
     loc_vars = function(self, info_queue, card)
         local mult = (G.GAME and G.GAME.hex_ic1101_mult) or 1
-        return { vars = { 1 * mult } }
+        local prob_mod = (G.GAME and G.GAME.probabilities and G.GAME.probabilities.normal) or 1
+        return { vars = { 1 * mult * prob_mod } }
     end,
 
     can_use = function(self, card)
@@ -9061,7 +9213,8 @@ SMODS.Consumable{
         if G.GAME.hex_astral_unlocked then return end
 
         local mult = (G.GAME and G.GAME.hex_ic1101_mult) or 1
-        local chance = (1 / 100) * mult
+        local prob_mod = (G.GAME and G.GAME.probabilities and G.GAME.probabilities.normal) or 1
+        local chance = (1 / 100) * mult * prob_mod
 
         if pseudorandom(pseudoseed(mod.prefix .. "_sculptor_galaxy")) < chance then
             G.GAME.hex_astral_unlocked = true
@@ -9151,16 +9304,16 @@ SMODS.Consumable{
 local function hex_nebula_apply_all_hands(stats, op, factor)
     if not (G.GAME and G.GAME.hands) then return end
 
-    for _, hand in pairs(G.GAME.hands) do
+    for hand_key, hand in pairs(G.GAME.hands) do
         for _, stat in ipairs(stats) do
             local current = hand[stat]
             if current then
                 if op == "mult" then
-                    hand[stat] = to_big(current) * big(factor)
+                    hex_set_hand_stat(hand_key, stat, to_big(current) * big(factor))
                 elseif op == "pow" then
-                    hand[stat] = to_big(current):arrow(1, factor)
+                    hex_set_hand_stat(hand_key, stat, to_big(current):arrow(1, factor))
                 elseif op == "tetrate" then
-                    hand[stat] = to_big(current):arrow(2, factor)
+                    hex_set_hand_stat(hand_key, stat, to_big(current):arrow(2, factor))
                 end
             end
         end
@@ -10564,8 +10717,8 @@ SMODS.Consumable{
 local function hex_black_hole_apply_all_hands(fn)
     if not (G.GAME and G.GAME.hands) then return end
 
-    for _, hand in pairs(G.GAME.hands) do
-        fn(hand)
+    for hand_key, hand in pairs(G.GAME.hands) do
+        fn(hand_key, hand)
     end
 end
 
@@ -10601,10 +10754,10 @@ SMODS.Consumable{
     end,
 
     use = function(self, card)
-        hex_black_hole_apply_all_hands(function(hand)
+        hex_black_hole_apply_all_hands(function(hand_key, hand)
             if hand.mult and hand.chips then
                 local exponent = big(10):arrow(1, hand.chips)
-                hand.mult = to_big(hand.mult):arrow(1, exponent)
+                hex_set_hand_stat(hand_key, "mult", to_big(hand.mult):arrow(1, exponent))
             end
         end)
 
@@ -10645,10 +10798,10 @@ SMODS.Consumable{
     end,
 
     use = function(self, card)
-        hex_black_hole_apply_all_hands(function(hand)
+        hex_black_hole_apply_all_hands(function(hand_key, hand)
             if hand.chips and hand.mult then
                 local exponent = big(10):arrow(1, hand.mult)
-                hand.chips = to_big(hand.chips):arrow(1, exponent)
+                hex_set_hand_stat(hand_key, "chips", to_big(hand.chips):arrow(1, exponent))
             end
         end)
 
@@ -10692,10 +10845,10 @@ SMODS.Consumable{
     end,
 
     use = function(self, card)
-        hex_black_hole_apply_all_hands(function(hand)
+        hex_black_hole_apply_all_hands(function(hand_key, hand)
             if hand.chips and hand.mult then
                 local height = to_big(hand.mult):arrow(1, 0.5)
-                hand.chips = to_big(hand.chips):arrow(2, height)
+                hex_set_hand_stat(hand_key, "chips", to_big(hand.chips):arrow(2, height))
             end
         end)
 
@@ -10736,10 +10889,10 @@ SMODS.Consumable{
     end,
 
     use = function(self, card)
-        hex_black_hole_apply_all_hands(function(hand)
+        hex_black_hole_apply_all_hands(function(hand_key, hand)
             if hand.mult and hand.chips then
                 local height = to_big(hand.chips):arrow(1, 0.5)
-                hand.mult = to_big(hand.mult):arrow(2, height)
+                hex_set_hand_stat(hand_key, "mult", to_big(hand.mult):arrow(2, height))
             end
         end)
 
@@ -10781,12 +10934,12 @@ SMODS.Consumable{
     end,
 
     use = function(self, card)
-        hex_black_hole_apply_all_hands(function(hand)
+        hex_black_hole_apply_all_hands(function(hand_key, hand)
             if hand.chips then
-                hand.chips = to_big(hand.chips):arrow(3, 1.1)
+                hex_set_hand_stat(hand_key, "chips", to_big(hand.chips):arrow(3, 1.1))
             end
             if hand.mult then
-                hand.mult = to_big(hand.mult):arrow(3, 1.1)
+                hex_set_hand_stat(hand_key, "mult", to_big(hand.mult):arrow(3, 1.1))
             end
         end)
 
@@ -11516,12 +11669,12 @@ SMODS.Consumable{
         -- arrow(2, height) is the tetration operator, so arrow(2, 2)
         -- raises a value to a power tower of itself two high (n^n).
         if G.GAME and G.GAME.hands then
-            for _, hand in pairs(G.GAME.hands) do
+            for hand_key, hand in pairs(G.GAME.hands) do
                 if hand.chips then
-                    hand.chips = to_big(hand.chips):arrow(2, 2)
+                    hex_set_hand_stat(hand_key, "chips", to_big(hand.chips):arrow(2, 2))
                 end
                 if hand.mult then
-                    hand.mult = to_big(hand.mult):arrow(2, 2)
+                    hex_set_hand_stat(hand_key, "mult", to_big(hand.mult):arrow(2, 2))
                 end
             end
         end
