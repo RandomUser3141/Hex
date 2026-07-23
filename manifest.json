@@ -8,6 +8,7 @@
     "version": "0.1.0",
     "priority": 0,
     "dependencies": [
-        "Amulet"
+        "Amulet (>=2.7)",
+        "Steamodded (>=1.0.0~BETA-1501a)"
     ]
 }

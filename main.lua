@@ -106,6 +106,7 @@ G.C.GALAXY = HEX("8A2BE2")
 G.C.NEBULA = HEX("521652")
 G.C.ASTRAL = HEX("276954")
 G.C.COSMIC = HEX("6D6BC2")
+G.C.BLACK_HOLE = HEX("12223B")
 
 G.C.ABSOLUTE = {1, 0, 0, 1} -- initial color
 
@@ -173,6 +174,9 @@ function loc_colour(_c, _default)
     end
     if _c == "cosmic" then
         return G.C.COSMIC
+    end
+    if _c == "black_hole" then
+        return G.C.BLACK_HOLE
     end
     return old_loc_colour(_c, _default)
 end
@@ -306,6 +310,8 @@ local R_HEX_ABSOLUTE = SMODS.Rarity{
     default_weight = 0.0000001, -- rarer than mythic (0.0001) — tune as you like
     badge_colour = G.C.ABSOLUTE
 }
+
+
 
 
 -- ============================================================
@@ -3705,7 +3711,6 @@ local old_create_card = create_card
 
 function create_card(_type, area, legendary, _rarity, skip_materialize, soulable, forced_key, key_append)
 
-
     -- Hypernova: an individual shop consumable slot has a flat chance to
     -- be forced into a random Star card instead of whatever it would
     -- have naturally rolled (Tarot/Planet/Spectral). Gated on
@@ -3766,6 +3771,7 @@ function create_card(_type, area, legendary, _rarity, skip_materialize, soulable
         forced_key,
         key_append
     )
+
 
     if _type == "Joker" and pseudorandom(mod.prefix .. "_prismatic_joker") < 0.005 then
     card:set_edition({
@@ -3881,7 +3887,98 @@ SMODS.Back{
     pos = { x = 1, y = 4 }, -- next open frame in the atlas, after Infinite Deck (0,0) and Negative Deck (0,2)
 
     atlas = "HexEnhancers",
+} 
+
+
+
+
+SMODS.Back{
+    key = "celestial_deck",
+
+    loc_txt = {
+        name = "Celestial Deck",
+        text = {
+            "Start with {C:attention}Nova{} and",
+            "{C:attention}Hypernova{}, and {C:attention}1{} random",
+            "{C:star}Star{} card and {C:attention}1{} random",
+            "{C:galaxy}Galaxy{} card",
+        }
+    },
+
+    unlocked = true,
+    discovered = true,
+
+    -- NOTE: shares its atlas frame with the other (1,4) decks in this
+    -- mod, per existing convention -- move it to an unused frame in
+    -- HexEnhancers before shipping if that overlap isn't intentional.
+    pos = { x = 1, y = 4 },
+
+    atlas = "HexEnhancers",
+
+    -- Redeems Nova and Hypernova immediately when the deck is applied --
+    -- same apply-time redeem pattern Overstock Deck uses for its own
+    -- three starting vouchers above (G.P_CENTERS[key]:redeem() plus
+    -- marking G.GAME.used_vouchers so they show as owned/redeemed).
+    -- Wrapped in the same 0.1s delayed event Overstock Deck uses, so
+    -- G.GAME is guaranteed to exist by the time this runs.
+    apply = function(self, back)
+        G.E_MANAGER:add_event(Event({
+            trigger = "after",
+            delay = 0.1,
+            func = function()
+                G.GAME.used_vouchers = G.GAME.used_vouchers or {}
+
+                for _, key in ipairs({
+                    "v_" .. mod.prefix .. "_nova",
+                    "v_" .. mod.prefix .. "_hypernova",
+                }) do
+                    local voucher = G.P_CENTERS[key]
+
+                    if voucher then
+                        G.GAME.used_vouchers[key] = true
+
+                        if voucher.redeem then
+                            voucher:redeem()
+                        end
+                    end
+                end
+
+                return true
+            end
+        }))
+    end,
 }
+
+
+
+SMODS.Back{
+    key = "black_hole_deck",
+
+    loc_txt = {
+        name = "Black Hole Deck",
+        text = {
+            "Start with a random",
+            "{C:blue}Black Hole{} card",
+        }
+    },
+
+    unlocked = true,
+    discovered = true,
+
+    -- NOTE: shares its atlas frame with the other (1,4) decks in this
+    -- mod, per existing convention -- move it to an unused frame in
+    -- HexEnhancers before shipping if that overlap isn't intentional.
+    pos = { x = 1, y = 4 },
+
+    atlas = "HexEnhancers",
+}
+
+
+
+
+
+
+
 
 SMODS.Back{
     key = "cursed_deck",
@@ -4079,9 +4176,13 @@ function Game:start_run(args, ...)
     local ret = old_start_run_relic_deck(self, args, ...)
 
     if hex_relic_deck_selected() and not (args and args.savetext) then
+        local showman_owned = hex_owns_showman()
+
         local legendaries = {}
         for _, center in pairs(G.P_CENTERS) do
-            if center.set == "Joker" and center.rarity == 4 then
+            if center.set == "Joker"
+            and center.rarity == 4
+            and (showman_owned or #SMODS.find_card(center.key) == 0) then
                 legendaries[#legendaries + 1] = center
             end
         end
@@ -4154,9 +4255,13 @@ function Game:start_run(args, ...)
     if hex_prestige_deck_selected() and not (args and args.savetext) then
         G.GAME.win_ante = 16
 
+        local showman_owned = hex_owns_showman()
+
         local mythics = {}
         for _, center in pairs(G.P_CENTERS) do
-            if center.set == "Joker" and center.rarity == R_HEX_MYTHIC.key then
+            if center.set == "Joker"
+            and center.rarity == R_HEX_MYTHIC.key
+            and (showman_owned or #SMODS.find_card(center.key) == 0) then
                 mythics[#mythics + 1] = center
             end
         end
@@ -4449,6 +4554,86 @@ function Game:start_run(args, ...)
     return ret
 end
 
+
+SMODS.Back{
+    key = "impossible_deck",
+
+    loc_txt = {
+        name = "Impossible Deck",
+        text = {
+            "Win ante is ante 1",
+            "{C:mult}-4{} Joker slot",
+            "{C:mult}-3{} hand each round",
+            "{C:mult}-3{} discard each round",
+            "{C:attention}-3{} hand size",
+            "Start with {C:money}$0{}",
+        }
+    },
+
+    config = {
+        joker_slot = -4
+    },
+
+    unlocked = true,
+    discovered = true,
+
+    pos = { x = 1, y = 2 },
+
+    atlas = "HexEnhancers",
+}
+
+local HEX_IMPOSSIBLE_DECK_KEY = "b_" .. mod.prefix .. "_impossible_deck"
+
+local function hex_impossible_deck_selected()
+    return G.GAME
+        and G.GAME.selected_back
+        and G.GAME.selected_back.effect
+        and G.GAME.selected_back.effect.center
+        and G.GAME.selected_back.effect.center.key == HEX_IMPOSSIBLE_DECK_KEY
+end
+
+
+local old_start_run_impossible_deck = Game.start_run
+
+function Game:start_run(args, ...)
+    local ret = old_start_run_impossible_deck(self, args, ...)
+
+    if hex_impossible_deck_selected() and not (args and args.savetext) then
+        G.GAME.win_ante = 1
+
+        G.GAME.round_resets.hands = math.max(1, (G.GAME.round_resets.hands or 4) - 3)
+        G.GAME.round_resets.discards = math.max(0, (G.GAME.round_resets.discards or 3) - 3)
+        G.GAME.round_resets.hand_size = math.max(1, (G.GAME.round_resets.hand_size or 8) - 3)
+
+        if G.GAME.current_round then
+            G.GAME.current_round.hands_left = G.GAME.round_resets.hands
+            G.GAME.current_round.discards_left = G.GAME.round_resets.discards
+        end
+
+        G.GAME.dollars = 0
+
+        if G.hand and G.hand.config then
+            G.hand.config.card_limit = G.GAME.round_resets.hand_size
+
+            if G.deck then
+                for i = #G.hand.cards, 1, -1 do
+                    if #G.hand.cards <= G.GAME.round_resets.hand_size then break end
+                    local c = G.hand:remove_card(G.hand.cards[i])
+                    if c then
+                        G.deck:emplace(c)
+                    end
+                end
+            end
+        end
+    end
+
+    return ret
+end
+
+
+
+
+
 SMODS.Back{
     key = "broken_deck",
 
@@ -4684,6 +4869,7 @@ local HEX_PERKEO_BLOCKED_SETS = {
     nebula = true,
     astral = true,
     cosmic = true,
+    black_hole = true,
 }
 local hex_old_calculate_joker = Card.calculate_joker
 
@@ -5346,7 +5532,7 @@ SMODS.Joker{
     -- Fills the #1# placeholder in the description text with the current
     -- tetration height (i.e. how many Jokers are currently owned).
     loc_vars = function(self, info_queue, card)
-        local height = (G.jokers and #G.jokers.cards) or 1
+        local height = ((G.jokers and #G.jokers.cards) or 1) +1
         return { vars = { height } }
     end,
 
@@ -5357,7 +5543,7 @@ SMODS.Joker{
         -- already applied their Mult changes when this tetration happens,
         -- and Jokers to Juno's right apply on top of it.
         if context.joker_main then
-            local height = (G.jokers and #G.jokers.cards ) or 1
+            local height = ((G.jokers and #G.jokers.cards ) or 1) +1
 
             if height > 0 then
                 return {
@@ -5366,7 +5552,7 @@ SMODS.Joker{
                         update_hand_text({delay = 0}, {mult = mult})
                     end,
                     message = "^^" .. tostring(height),
-                    colour = G.C.RITUAL
+                    colour = G.C.TRANSCENDENTAL
                 }
             end
         end
@@ -5563,14 +5749,12 @@ SMODS.Consumable{
 
         local mythics = {}
 
-        -- Mythic+ rarities are always capped at one copy each, even with
-        -- Showman -- Showman only affects normal-rarity Jokers, so we
-        -- filter out already-owned Mythics unconditionally here (same
-        -- rule Divine grants already enforce elsewhere in this file).
+        local showman_owned = hex_owns_showman()
+
         for _, center in pairs(G.P_CENTERS) do
             if center.set == "Joker"
             and center.rarity == R_HEX_MYTHIC.key
-            and #SMODS.find_card(center.key) == 0 then
+            and (showman_owned or #SMODS.find_card(center.key) == 0) then
                 mythics[#mythics+1] = center
             end
         end
@@ -5738,7 +5922,7 @@ SMODS.ConsumableType{
     primary_colour = G.C.COSMIC,
     secondary_colour = G.C.COSMIC,
     badge_colour = G.C.COSMIC,
-    collection_rows = { 6, 6 },
+    collection_rows = { 5, 5 },
     shop_rate = 0,          -- never appears in normal shop generation
     loc_txt = {
         name = "Cosmic",
@@ -5756,12 +5940,37 @@ SMODS.ConsumableType{
 }
 
 
+SMODS.ConsumableType{
+    key = "black_hole",
+    primary_colour = G.C.BLACK_HOLE,
+    secondary_colour = G.C.BLACK_HOLE,
+    badge_colour = G.C.BLACK_HOLE,
+    collection_rows = { 2, 3 },
+    shop_rate = 0,          -- never appears in normal shop generation
+    loc_txt = {
+        name = "Black Hole",
+        collection = "Black Holes",
+        undiscovered = {
+            name = "Undiscovered Black Hole",
+            text = {
+                "Use this Black Hole",
+                "to discover it"
+            }
+        }
+    },
+    can_stack = true,
+    can_divide = true,
+}
 
 
 
 
 
-local HEX_STAR_PACK_WEIGHT = ((G.P_CENTERS.p_spectral_normal and G.P_CENTERS.p_spectral_normal.weight) or 0.6) / 2
+
+
+
+
+local HEX_STAR_PACK_WEIGHT = ((G.P_CENTERS.p_spectral_normal and G.P_CENTERS.p_spectral_normal.weight) or 0.6) 
 
 -- Filters out any Star/Galaxy centers already picked earlier in this
 -- same pack opening, unless the player owns Showman (which allows
@@ -6056,12 +6265,6 @@ SMODS.Booster{
 
 
 
-
-
-
-local function hex_owns_showman()
-    return SMODS.find_card and #SMODS.find_card("j_showman") > 0
-end
 
 -- Checks whether a Star (or any) consumable with this exact key is
 -- currently sitting in the player's consumable slots.
@@ -7948,9 +8151,13 @@ SMODS.Consumable{
             end
         }))
 
+        local showman_owned = hex_owns_showman()
+
         local legendaries = {}
         for _, center in pairs(G.P_CENTERS) do
-            if center.set == "Joker" and center.rarity == 4 then
+            if center.set == "Joker"
+            and center.rarity == 4
+            and (showman_owned or #SMODS.find_card(center.key) == 0) then
                 legendaries[#legendaries + 1] = center
             end
         end
@@ -8415,7 +8622,7 @@ SMODS.Consumable{
     set = "galaxy",
 
     atlas = "HexStarsGalaxies",
-    pos = { x = 3, y = 3 }, -- next open frame in the atlas
+    pos = { x = 3, y = 3 }, 
 
     unlocked = true,
     discovered = true,
@@ -8459,7 +8666,7 @@ SMODS.Consumable{
     set = "galaxy",
 
     atlas = "HexStarsGalaxies",
-    pos = { x = 9, y = 3 }, -- next open frame in the atlas
+    pos = { x = 9, y = 3 },
 
     unlocked = true,
     discovered = true,
@@ -8501,7 +8708,7 @@ SMODS.Consumable{
     set = "galaxy",
 
     atlas = "HexStarsGalaxies",
-    pos = { x = 0, y = 4 }, -- next open row after Large Magellanic Cloud (9,3)
+    pos = { x = 0, y = 4 }, 
 
     unlocked = true,
     discovered = true,
@@ -9608,7 +9815,7 @@ SMODS.Consumable{
 
         return total > 3 and (total - owned) >= 3
     end,
-    
+
     use = function(self, card)
         G.GAME.hex_planck_star_used = true
         G.GAME.hex_cosmic_unlocked = true
@@ -9665,18 +9872,198 @@ SMODS.Consumable{
 
 
 
+-- Shared rarity->Hex-value table and calculation, used by both the
+-- manual HEX sacrifice button (G.FUNCS.hex_sacrifice, defined later in
+-- the file) and Huge-LQG below. Declared here, early, since Huge-LQG is
+-- defined before the button's own code appears later in the file.
+local hex_sacrifice_values = {
+    [1] = big(1),
+    [2] = big(2),
+    [3] = big(5),
+    [4] = big(20),
+    ["hex_mythic"] = big(50),
+    ["hex_transcendental"] = big(250),
+    ["hex_divine"] = big(5000),
+}
 
+-- Computes the Hex-point gain for hexing/sacrificing a given Joker card,
+-- applying Cursed Deck's double and The Monolith's flat bonus in that
+-- order -- the exact same order G.FUNCS.hex_sacrifice itself applies
+-- them in, since it now calls this same function.
+-- Computes the Hex-point gain for hexing/sacrificing a given Joker card,
+-- applying Laniakea Supercluster's permanent X2 (if used), then Cursed
+-- Deck's double, then The Monolith's flat bonus -- the exact same order
+-- G.FUNCS.hex_sacrifice and Huge-LQG both go through, since they now
+-- call this same function.
+local function hex_compute_sacrifice_gain(card)
+    local rarity = card.config.center.rarity
+    local gain = hex_sacrifice_values[rarity] or big(0)
+
+    if gain > big(0) then
+        if G.GAME and G.GAME.hex_laniakea_used then
+            gain = gain * big(2)
+        end
+
+        if hex_cursed_deck_selected() then
+            gain = gain * big(2)
+        end
+
+        local monolith_count = #SMODS.find_card("j_" .. mod.prefix .. "_the_monolith")
+        if monolith_count > 0 then
+            gain = gain + big(monolith_count)
+        end
+    end
+
+    return gain
+end
 
 
 
 -- ============================================================
 -- Cosmic cards
--- Rarest tier -- like Astral cards, these never appear via shop_rate
+-- Rare -- like Astral cards, these never appear via shop_rate
 -- (0 on the "cosmic" ConsumableType above) or any create_card
 -- injection anywhere in this file; they only ever enter play if
 -- something (a future Joker/Voucher/Ritual, etc.) grants them
 -- directly.
 -- ============================================================
+
+
+
+-- Virgo Cluster: creates 5 Negative copies of vanilla's own Soul card
+-- (the Spectral that creates a Legendary Joker) and 3 Negative copies of
+-- this mod's own Heart card (the Mythic-Joker-creating counterpart to
+-- Soul) -- same staggered create+force-Negative pattern Rigel/Sombrero
+-- Galaxy use above, and the same forced-key SMODS.create_card call
+-- Black Seal's own Spectral grant uses, just pointed at these two exact
+-- keys instead of drawing randomly. Deliberately no consumable-slot-
+-- limit check, matching Rigel/Sombrero Galaxy's own precedent -- every
+-- one of the 8 cards is always created regardless of how full
+-- G.consumeables already is.
+SMODS.Consumable{
+    key = "virgo_cluster",
+    set = "cosmic",
+
+    atlas = "HexAstralsCosmics",
+    pos = { x = 0, y = 2 }, -- placeholder, adjust before shipping
+
+    unlocked = true,
+    discovered = true,
+
+    in_pool = function(self)
+        return true -- never naturally generated; must be granted directly
+    end,
+
+    loc_txt = {
+        name = "Virgo Cluster",
+        text = {
+            "Creates {C:attention}5{} {C:dark_red}Negative",
+            "{C:legendary}The Soul{} cards and {C:attention}3{}",
+            "{C:dark_red}Negative{} {C:mythic}The Heart{} cards",
+        }
+    },
+
+    can_use = function(self, card)
+        return true
+    end,
+
+    use = function(self, card)
+        -- 5 Negative Soul cards
+        for i = 1, 5 do
+            G.E_MANAGER:add_event(Event({
+                trigger = "after",
+                delay = 0.15 * i,
+                func = function()
+                    if G.consumeables then
+                        local new_card = SMODS.create_card({
+                            key = HEX_SOUL_CENTER_KEY,
+                            area = G.consumeables
+                        })
+
+                        new_card:set_edition({ negative = true }, true)
+
+                        G.consumeables:emplace(new_card)
+                    end
+                    return true
+                end
+            }))
+        end
+
+        -- 3 Negative Heart cards, staggered to start right after the
+        -- 5 Soul cards above finish their own staggered creation.
+        for i = 1, 3 do
+            G.E_MANAGER:add_event(Event({
+                trigger = "after",
+                delay = 0.15 * (5 + i),
+                func = function()
+                    if G.consumeables then
+                        local new_card = SMODS.create_card({
+                            key = HEX_HEART_CENTER_KEY,
+                            area = G.consumeables
+                        })
+
+                        new_card:set_edition({ negative = true }, true)
+
+                        G.consumeables:emplace(new_card)
+                    end
+                    return true
+                end
+            }))
+        end
+
+        card_eval_status_text(card, "extra", nil, nil, nil, {
+            message = "+8 Negative",
+            colour = G.C.COSMIC
+        })
+    end,
+}
+
+
+
+
+SMODS.Consumable{
+    key = "laniakea_supercluster",
+    set = "cosmic",
+
+    atlas = "HexAstralsCosmics",
+    pos = { x = 0, y = 2 }, -- placeholder, adjust before shipping
+
+    unlocked = true,
+    discovered = true,
+
+    in_pool = function(self)
+        return not (G.GAME and G.GAME.hex_laniakea_used)
+    end,
+
+    loc_txt = {
+        name = "Laniakea Supercluster",
+        text = {
+            "Permanently {C:attention}doubles{} the",
+            "{C:purple}Hex points{} gained from",
+            "hexing Jokers",
+            "{C:inactive}This card can't appear{}",
+            "{C:inactive}again after being used{}",
+        }
+    },
+
+    can_use = function(self, card)
+        return not (G.GAME and G.GAME.hex_laniakea_used)
+    end,
+
+    use = function(self, card)
+        if G.GAME.hex_laniakea_used then return end
+        G.GAME.hex_laniakea_used = true
+
+        card_eval_status_text(card, "extra", nil, nil, nil, {
+            message = "X2 Hex Gain!",
+            colour = G.C.COSMIC
+        })
+    end,
+}
+
+
+
+
 
 SMODS.Consumable{
     key = "shapley_supercluster",
@@ -9794,7 +10181,7 @@ SMODS.Consumable{
     },
 
     -- Reuses hex_andromeda_eligible_jokers (defined above under the
-    -- Galaxy cards / Andromeda section) so Eternal Jokers and anything
+    -- Galaxy cards / Andromeda section) so anything
     -- carrying the Immortal sticker (i.e. Absolute) can never be
     -- destroyed by this either.
     can_use = function(self, card)
@@ -9843,6 +10230,524 @@ SMODS.Consumable{
 
 
 
+-- Helper: eligible Jokers for Huge-LQG's random hex -- same exclusions
+-- G.FUNCS.hex_sacrifice itself enforces (Eternal Jokers and Absolute can
+-- never be hexed), reusing hex_apply_immortal_sticker's own key so this
+-- also can never target anything carrying the Immortal sticker.
+local function hex_huge_lqg_eligible_jokers()
+    local out = {}
+    if not (G.jokers and G.jokers.cards) then return out end
+
+    for _, j in ipairs(G.jokers.cards) do
+        local eternal = j.ability and j.ability.eternal
+        local immortal = j.ability and j.ability[HEX_IMMORTAL_STICKER_KEY]
+        local is_absolute = j.config and j.config.center
+            and j.config.center.key == ("j_" .. mod.prefix .. "_absolute")
+
+        if not eternal and not immortal and not is_absolute then
+            out[#out + 1] = j
+        end
+    end
+
+    return out
+end
+
+SMODS.Consumable{
+    key = "huge_lqg",
+    set = "cosmic",
+
+    atlas = "HexAstralsCosmics",
+    pos = { x = 0, y = 2 },
+
+    unlocked = true,
+    discovered = true,
+
+    in_pool = function(self)
+        return true -- never naturally generated; must be granted directly
+    end,
+
+    loc_txt = {
+        name = "Huge-LQG",
+        text = {
+            "Hexes a {C:attention}random{} Joker for",
+            "{C:attention}X50{} the normal",
+            "{C:purple}Hex point{} value",
+        }
+    },
+
+    can_use = function(self, card)
+        return #hex_huge_lqg_eligible_jokers() > 0
+    end,
+
+    use = function(self, card)
+        local eligible = hex_huge_lqg_eligible_jokers()
+        if not eligible[1] then return end
+
+        local chosen = pseudorandom_element(eligible, pseudoseed(mod.prefix .. "_huge_lqg"))
+
+        -- X50 is applied AFTER Cursed Deck's double and Monolith's flat
+        -- bonus, since hex_compute_sacrifice_gain already folds both of
+        -- those in before returning.
+        local gain = hex_compute_sacrifice_gain(chosen) * big(50)
+
+        if gain > big(0) then
+            G.GAME.hex_points = (G.GAME.hex_points or big(0)) + gain
+
+            card_eval_status_text(chosen, "extra", nil, nil, nil, {
+                message = "+" .. tostring(gain) .. " Hex",
+                colour = G.C.COSMIC
+            })
+
+            G.E_MANAGER:add_event(Event({
+                trigger = "after",
+                delay = 0.3,
+                func = function()
+                    chosen:start_dissolve()
+                    return true
+                end
+            }))
+        end
+    end,
+}
+
+
+
+
+
+
+-- Helper: every registered Black Hole center, mirroring
+-- hex_get_nebula_centers/hex_get_astral_centers -- excludes already-owned
+-- Black Hole consumables unless Showman is owned.
+local function hex_get_black_hole_centers()
+    local out = {}
+    local showman = hex_owns_showman()
+
+    for _, center in pairs(G.P_CENTERS) do
+        if center.set == "black_hole" then
+            local skip = false
+
+            if not showman and hex_consumable_already_owned(center.key) then
+                skip = true
+            end
+
+            if not skip then
+                out[#out + 1] = center
+            end
+        end
+    end
+
+    return out
+end
+
+SMODS.Consumable{
+    key = "local_void",
+    set = "cosmic",
+
+    atlas = "HexAstralsCosmics",
+    pos = { x = 0, y = 2 }, -- placeholder, adjust before shipping
+
+    unlocked = true,
+    discovered = true,
+
+    in_pool = function(self)
+        return true -- never naturally generated; must be granted directly
+    end,
+
+    loc_txt = {
+        name = "Local Void",
+        text = {
+            "Creates a random",
+            "{C:blue}Black Hole{} card",
+        }
+    },
+
+    can_use = function(self, card)
+        return true
+    end,
+
+    use = function(self, card)
+        if G.consumeables and #G.consumeables.cards < G.consumeables.config.card_limit then
+            local black_holes = hex_get_black_hole_centers()
+
+            if #black_holes > 0 then
+                local chosen = black_holes[math.random(#black_holes)]
+
+                local new_card = SMODS.create_card({
+                    key = chosen.key,
+                    area = G.consumeables
+                })
+
+                G.consumeables:emplace(new_card)
+
+                card_eval_status_text(new_card, "extra", nil, nil, nil, {
+                    message = "Black Hole!",
+                    colour = G.C.BLACK_HOLE
+                })
+            end
+        end
+    end,
+}
+
+SMODS.Consumable{
+    key = "bootes_void",
+    set = "cosmic",
+
+    atlas = "HexAstralsCosmics",
+    pos = { x = 0, y = 2 }, -- placeholder, adjust before shipping
+
+    unlocked = true,
+    discovered = true,
+
+    in_pool = function(self)
+        return true -- never naturally generated; must be granted directly
+    end,
+
+    loc_txt = {
+        name = "Boötes Void",
+        text = {
+            "{C:money}X1729{} your money",
+        }
+    },
+
+    can_use = function(self, card)
+        return true
+    end,
+
+    use = function(self, card)
+        -- Multiplication itself is done in OmegaNum space (to_big/big),
+        -- then best-effort converted back down to a plain Lua number for
+        -- G.GAME.dollars -- unlike Hex points, dollars is a vanilla,
+        -- UI-bound plain-number field (the money counter/shop code all
+        -- read/write it as an ordinary Lua number), so it can't be left
+        -- as an OmegaNum cdata value the way hex_points can.
+        local current = to_big((G.GAME and G.GAME.dollars) or 0)
+        local result = current * big(1729)
+
+        G.GAME.dollars = hex_to_plain_number(result)
+
+        card_eval_status_text(card, "extra", nil, nil, nil, {
+            message = "X1729 Money",
+            colour = G.C.COSMIC
+        })
+    end,
+}
+
+
+-- Giant Arc: permanently raises how many cards can be *chosen* from every
+-- booster pack opened (Arcana, Celestial, Spectral, Standard, Buffoon,
+-- and this mod's own Star/Galaxy/Black Hole packs alike), by +1 per use,
+-- capped at a total bonus of +10. Mirrors Wormhole's own Card:open hook
+-- above almost exactly, just targeting self.ability.choose (the runtime
+-- field mirroring a Booster's own config.choose) instead of
+-- self.ability.extra (config.extra, the number of cards shown).
+local hex_old_card_open_giant_arc = Card.open
+
+function Card:open(...)
+    if self.ability and self.ability.set == "Booster" then
+        local bonus = (G.GAME and G.GAME.hex_giant_arc_bonus) or 0
+        if bonus > 0 and self.ability.choose then
+            self.ability.choose = self.ability.choose + bonus
+        end
+    end
+
+    return hex_old_card_open_giant_arc(self, ...)
+end
+
+SMODS.Consumable{
+    key = "giant_arc",
+    set = "cosmic",
+
+    atlas = "HexAstralsCosmics",
+    pos = { x = 0, y = 2 }, -- placeholder, adjust before shipping
+
+    unlocked = true,
+    discovered = true,
+
+    in_pool = function(self)
+        return ((G.GAME and G.GAME.hex_giant_arc_bonus) or 0) < 10
+    end,
+
+    loc_txt = {
+        name = "Giant Arc",
+        text = {
+            "Permanently gain {C:attention}+1{}",
+            "selection limit in {C:attention}booster packs{}",
+            "{C:inactive}(Max of +10){}",
+            "{C:inactive}(Currently +#1#){}",
+        }
+    },
+
+    loc_vars = function(self, info_queue, card)
+        return { vars = { (G.GAME and G.GAME.hex_giant_arc_bonus) or 0 } }
+    end,
+
+    can_use = function(self, card)
+        return ((G.GAME and G.GAME.hex_giant_arc_bonus) or 0) < 10
+    end,
+
+    use = function(self, card)
+        if ((G.GAME and G.GAME.hex_giant_arc_bonus) or 0) >= 10 then return end
+
+        G.GAME.hex_giant_arc_bonus = (G.GAME.hex_giant_arc_bonus or 0) + 1
+
+        card_eval_status_text(card, "extra", nil, nil, nil, {
+            message = "+1 Selection",
+            colour = G.C.COSMIC
+        })
+    end,
+}
+
+
+
+
+
+
+
+
+
+--==================== Black holes ================
+
+
+
+-- Loops over every registered poker hand and lets `fn(hand)` mutate its
+-- .chips/.mult fields directly -- same "loop over every G.GAME.hands
+-- entry" approach Polaris/Eclipse/Nebula cards already use elsewhere in
+-- this file.
+local function hex_black_hole_apply_all_hands(fn)
+    if not (G.GAME and G.GAME.hands) then return end
+
+    for _, hand in pairs(G.GAME.hands) do
+        fn(hand)
+    end
+end
+
+-- Cygnus X-1: raises every hand's Mult to the power of (10^Chips).
+-- 10^chips is computed first as its own OmegaNum value
+-- (big(10):arrow(1, chips)), then used as the exponent for Mult's own
+-- arrow(1, ...) power.
+SMODS.Consumable{
+    key = "cygnus_x1",
+    set = "black_hole",
+
+    atlas = "HexNebulasBlackholes",
+    pos = { x = 0, y = 3 }, -- placeholder, adjust before shipping
+
+    unlocked = true,
+    discovered = true,
+
+    in_pool = function(self)
+        return true -- never naturally generated; must be granted directly
+    end,
+
+    loc_txt = {
+        name = "Cygnus X-1",
+        text = {
+            "{C:mult}Mult{} of every poker hand",
+            "is raised to the power of",
+            "{C:attention}10^Chips{}",
+        }
+    },
+
+    can_use = function(self, card)
+        return true
+    end,
+
+    use = function(self, card)
+        hex_black_hole_apply_all_hands(function(hand)
+            if hand.mult and hand.chips then
+                local exponent = big(10):arrow(1, hand.chips)
+                hand.mult = to_big(hand.mult):arrow(1, exponent)
+            end
+        end)
+
+        card_eval_status_text(card, "extra", nil, nil, nil, {
+            message = "^(10^Chips) Mult",
+            colour = G.C.BLACK_HOLE
+        })
+    end,
+}
+
+-- Messier 87: mirror of Cygnus X-1, raising Chips to the power of
+-- (10^Mult) instead.
+SMODS.Consumable{
+    key = "messier_87",
+    set = "black_hole",
+
+    atlas = "HexNebulasBlackholes",
+    pos = { x = 0, y = 3 },
+
+    unlocked = true,
+    discovered = true,
+
+    in_pool = function(self)
+        return true
+    end,
+
+    loc_txt = {
+        name = "Messier 87",
+        text = {
+            "{C:chips}Chips{} of every poker hand",
+            "is raised to the power of",
+            "{C:attention}10^Mult{}",
+        }
+    },
+
+    can_use = function(self, card)
+        return true
+    end,
+
+    use = function(self, card)
+        hex_black_hole_apply_all_hands(function(hand)
+            if hand.chips and hand.mult then
+                local exponent = big(10):arrow(1, hand.mult)
+                hand.chips = to_big(hand.chips):arrow(1, exponent)
+            end
+        end)
+
+        card_eval_status_text(card, "extra", nil, nil, nil, {
+            message = "^(10^Mult) Chips",
+            colour = G.C.BLACK_HOLE
+        })
+    end,
+}
+
+-- Sagittarius A*: tetrates every hand's Chips to a height of
+-- Mult^0.5 (i.e. sqrt(Mult)), computed entirely in OmegaNum space via
+-- arrow(1, 0.5) rather than converting down to a plain Lua number, so
+-- this never risks the plain-number-inf issue that crashed arrow()
+-- before.
+SMODS.Consumable{
+    key = "sagittarius_a_star",
+    set = "black_hole",
+
+    atlas = "HexNebulasBlackholes",
+    pos = { x = 0, y = 3 },
+
+    unlocked = true,
+    discovered = true,
+
+    in_pool = function(self)
+        return true
+    end,
+
+    loc_txt = {
+        name = "Sagittarius A*",
+        text = {
+            "{C:chips}Chips{} of every poker hand",
+            "is tetrated to",
+            "{C:attention}Mult^0.5{}",
+        }
+    },
+
+    can_use = function(self, card)
+        return true
+    end,
+
+    use = function(self, card)
+        hex_black_hole_apply_all_hands(function(hand)
+            if hand.chips and hand.mult then
+                local height = to_big(hand.mult):arrow(1, 0.5)
+                hand.chips = to_big(hand.chips):arrow(2, height)
+            end
+        end)
+
+        card_eval_status_text(card, "extra", nil, nil, nil, {
+            message = "^^(Mult^0.5)",
+            colour = G.C.BLACK_HOLE
+        })
+    end,
+}
+
+-- Centaurus A: mirror of Sagittarius A*, tetrating Mult to a height of
+-- Chips^0.5 instead, same big()/arrow()-only approach.
+SMODS.Consumable{
+    key = "centaurus_a",
+    set = "black_hole",
+
+    atlas = "HexNebulasBlackholes",
+    pos = { x = 0, y = 3 },
+
+    unlocked = true,
+    discovered = true,
+
+    in_pool = function(self)
+        return true
+    end,
+
+    loc_txt = {
+        name = "Centaurus A",
+        text = {
+            "{C:mult}Mult{} of every poker hand",
+            "is tetrated to",
+            "{C:attention}Chips^0.5{}",
+        }
+    },
+
+    can_use = function(self, card)
+        return true
+    end,
+
+    use = function(self, card)
+        hex_black_hole_apply_all_hands(function(hand)
+            if hand.mult and hand.chips then
+                local height = to_big(hand.chips):arrow(1, 0.5)
+                hand.mult = to_big(hand.mult):arrow(2, height)
+            end
+        end)
+
+        card_eval_status_text(card, "extra", nil, nil, nil, {
+            message = "^^(Chips^0.5)",
+            colour = G.C.BLACK_HOLE
+        })
+    end,
+}
+
+-- TON 618: the biggest known black hole, and the strongest card here --
+-- pentates (arrow(3, ...)) both Chips and Mult of every poker hand to a
+-- height of 1.1.
+SMODS.Consumable{
+    key = "ton_618",
+    set = "black_hole",
+
+    atlas = "HexNebulasBlackholes",
+    pos = { x = 0, y = 3 },
+
+    unlocked = true,
+    discovered = true,
+
+    in_pool = function(self)
+        return true
+    end,
+
+    loc_txt = {
+        name = "TON 618",
+        text = {
+            "{C:chips}Chips{} and {C:mult}Mult{} of",
+            "every poker hand are",
+            "pentated to {C:attention}^^^1.1{}",
+        }
+    },
+
+    can_use = function(self, card)
+        return true
+    end,
+
+    use = function(self, card)
+        hex_black_hole_apply_all_hands(function(hand)
+            if hand.chips then
+                hand.chips = to_big(hand.chips):arrow(3, 1.1)
+            end
+            if hand.mult then
+                hand.mult = to_big(hand.mult):arrow(3, 1.1)
+            end
+        end)
+
+        card_eval_status_text(card, "extra", nil, nil, nil, {
+            message = "^^^1.1 Chips/Mult",
+            colour = G.C.BLACK_HOLE
+        })
+    end,
+}
 
 
 
@@ -9853,6 +10758,115 @@ SMODS.Consumable{
 
 
 
+
+
+
+
+
+
+
+
+-- Key of Celestial Deck, used the same way every other deck-selection
+-- check in this file is built.
+local HEX_CELESTIAL_DECK_KEY = "b_" .. mod.prefix .. "_celestial_deck"
+
+local function hex_celestial_deck_selected()
+    return G.GAME
+        and G.GAME.selected_back
+        and G.GAME.selected_back.effect
+        and G.GAME.selected_back.effect.center
+        and G.GAME.selected_back.effect.center.key == HEX_CELESTIAL_DECK_KEY
+end
+
+-- Celestial Deck: grants one random Star card and one random Galaxy
+-- card as consumables on a genuine new run -- same new-run-only
+-- savetext guard, hex_get_star_centers()/hex_get_galaxy_centers()
+-- helpers (both already defined earlier in the file), and manual
+-- create+emplace pattern Ritualistic Deck's own consumable grant above
+-- uses. Each grant is checked against the consumable slot limit
+-- independently, so if there's only room for one, the Star card is
+-- granted and the Galaxy card is simply skipped rather than crashing or
+-- overflowing the area.
+local old_start_run_celestial_deck = Game.start_run
+
+function Game:start_run(args, ...)
+    local ret = old_start_run_celestial_deck(self, args, ...)
+
+    if hex_celestial_deck_selected() and not (args and args.savetext) then
+        if G.consumeables and #G.consumeables.cards < G.consumeables.config.card_limit then
+            local stars = hex_get_star_centers()
+            if #stars > 0 then
+                local chosen = stars[math.random(#stars)]
+
+                local card = SMODS.create_card({
+                    key = chosen.key,
+                    area = G.consumeables
+                })
+
+                G.consumeables:emplace(card)
+            end
+        end
+
+        if G.consumeables and #G.consumeables.cards < G.consumeables.config.card_limit then
+            local galaxies = hex_get_galaxy_centers()
+            if #galaxies > 0 then
+                local chosen = galaxies[math.random(#galaxies)]
+
+                local card = SMODS.create_card({
+                    key = chosen.key,
+                    area = G.consumeables
+                })
+
+                G.consumeables:emplace(card)
+            end
+        end
+    end
+
+    return ret
+end
+
+
+
+-- Key of Black Hole Deck, used the same way every other deck-selection
+-- check in this file is built.
+local HEX_BLACK_HOLE_DECK_KEY = "b_" .. mod.prefix .. "_black_hole_deck"
+
+local function hex_black_hole_deck_selected()
+    return G.GAME
+        and G.GAME.selected_back
+        and G.GAME.selected_back.effect
+        and G.GAME.selected_back.effect.center
+        and G.GAME.selected_back.effect.center.key == HEX_BLACK_HOLE_DECK_KEY
+end
+
+-- Black Hole Deck: grants one random Black Hole card as a consumable on
+-- a genuine new run, reusing hex_get_black_hole_centers() (already
+-- defined for Local Void above), same new-run-only savetext guard and
+-- manual create+emplace pattern every other consumable-granting deck in
+-- this file uses.
+local old_start_run_black_hole_deck = Game.start_run
+
+function Game:start_run(args, ...)
+    local ret = old_start_run_black_hole_deck(self, args, ...)
+
+    if hex_black_hole_deck_selected() and not (args and args.savetext) then
+        if G.consumeables and #G.consumeables.cards < G.consumeables.config.card_limit then
+            local black_holes = hex_get_black_hole_centers()
+            if #black_holes > 0 then
+                local chosen = black_holes[math.random(#black_holes)]
+
+                local card = SMODS.create_card({
+                    key = chosen.key,
+                    area = G.consumeables
+                })
+
+                G.consumeables:emplace(card)
+            end
+        end
+    end
+
+    return ret
+end
 
 
 
@@ -9943,6 +10957,7 @@ if SMODS.Scoring_Calculation then
             -- level 1 -> arrow(1) = ^, level 1 -> arrow(1) = ^^, etc.
             return to_big(chips):arrow(level, mult)
         end,
+        
         -- NOTE: the base game's operator-refresh function only ever reads
         -- .text and .colour off this object, and never touches the operator
         -- DynaText's .scale — so a top-level `scale` field here is silently
@@ -10503,20 +11518,18 @@ SMODS.Consumable{
     end,
 
     use = function(self, card)
-        -- Flips a permanent, run-long flag. The actual disabling happens
-        -- in the Game:update hook further down the file (right next to
-        -- the other "while owned/used, do X every frame" checks like
-        -- Coupon's reroll-cost pin and Absolute's scoring-calculation
-        -- activation): every frame, if this flag is set and the current
-        -- blind is a boss blind that hasn't been disabled yet, we call
-        -- Blind:disable() on it -- the same vanilla method the legendary
-        -- Joker Chicot uses to neutralize a boss blind's effect for a
-        -- round, except here it's applied to *every* boss blind for the
-        -- rest of the run, not just the current one.
+        -- hex_fractal_used is monotonic -- it only ever gets set to true,
+        -- here or anywhere else in the file, and nothing ever sets it back
+        -- to false. So this is NOT a toggle: using Fractal a second (or
+        -- third, etc.) time can never re-enable Boss Blinds. The guard
+        -- below just avoids redundant work on a repeat use (re-disabling
+        -- an already-disabled blind, re-showing the status text) -- it
+        -- doesn't change the actual disable behaviour, which is already
+        -- permanent from the very first use.
+        local already_active = G.GAME.hex_fractal_used
+
         G.GAME.hex_fractal_used = true
 
-        -- If a boss blind is already active/selected right now, disable
-        -- it immediately rather than waiting up to a frame.
         if G.GAME.blind and G.GAME.blind.boss and not G.GAME.blind.disabled then
             G.GAME.blind:disable()
         end
@@ -10524,10 +11537,12 @@ SMODS.Consumable{
         G.GAME.hex_rituals_used = G.GAME.hex_rituals_used or {}
         G.GAME.hex_rituals_used["fractal"] = true
 
-        card_eval_status_text(card, "extra", nil, nil, nil, {
-            message = "Fractal!",
-            colour = G.C.HEX_ORPLE or G.C.MULT
-        })
+        if not already_active then
+            card_eval_status_text(card, "extra", nil, nil, nil, {
+                message = "Fractal!",
+                colour = G.C.RITUAL
+            })
+        end
     end,
 }
 
@@ -11960,7 +12975,8 @@ function Game:start_run(...)
     G.GAME.hex_ic1101_mult = G.GAME.hex_ic1101_mult or 1
     G.GAME.hex_ic1101_uses = G.GAME.hex_ic1101_uses or 0
     G.GAME.hex_wormhole_bonus = G.GAME.hex_wormhole_bonus or 0
-
+    G.GAME.hex_laniakea_used = G.GAME.hex_laniakea_used or false
+    G.GAME.hex_giant_arc_bonus = G.GAME.hex_giant_arc_bonus or 0
 
     -- Re-apply the hyperoperator scoring calculation on resume/load, since
     -- G.GAME.current_scoring_calculation_key isn't guaranteed to survive it.
@@ -12022,48 +13038,18 @@ function Game:start_run(...)
     }))
     return ret
 end
-
-
-local hex_sacrifice_values = {
-    [1] = big(1),
-    [2] = big(2),
-    [3] = big(5),
-    [4] = big(20),
-    ["hex_mythic"] = big(50),
-    ["hex_transcendental"] = big(250),
-    ["hex_divine"] = big(5000),
-}
-
-
 G.FUNCS.hex_sacrifice = function(e)
 
     local card = e.config.ref_table
 
     if not card then return end
-    
-    -- Safety net: never sacrifice an eternal Joker or the Absolute Joker,
-    -- even if this somehow gets triggered outside the button (e.g. some
-    -- other mod's UI hook). The button itself is disabled for these too.
+
     if card.ability and card.ability.eternal then return end
     if card.config and card.config.center and card.config.center.key == ("j_" .. mod.prefix .. "_absolute") then return end
 
-    local rarity = card.config.center.rarity
-    local gain = hex_sacrifice_values[rarity] or big(0)
+    local gain = hex_compute_sacrifice_gain(card)
 
     if gain > big(0) then
-
-        -- Cursed Deck: doubles the base Hex-point value of the Joker being
-        -- hexed, before The Monolith's flat +1 bonus (below) is added on
-        -- top of that doubled amount.
-        if hex_cursed_deck_selected() then
-            gain = gain * big(2)
-        end
-
-    -- The Monolith: +1 bonus Hex point per Hex, per copy owned (stacks).
-        local monolith_count = #SMODS.find_card("j_" .. mod.prefix .. "_the_monolith")
-        if monolith_count > 0 then
-            gain = gain + big(monolith_count)
-        end
         G.GAME.hex_points = (G.GAME.hex_points or big(0)) + gain
         card_eval_status_text(card, "extra", nil, nil, nil, {
             message = "+" .. tostring(gain) .. " Hex",
@@ -12756,6 +13742,10 @@ function Game:splash_screen()
     G.E_MANAGER:add_event(Event({
         trigger = 'immediate',
         func = (function()
+            local blue_swirl = {
+                c1 = HEX('1E3A8A'), -- deep navy blue
+                c2 = HEX('38BDF8'), -- lighter sky blue
+            }
             G.TIMERS.TOTAL = 0
             G.TIMERS.REAL = 0
             G.SPLASH_BACK = Sprite(-30, -13, G.ROOM.T.w+60, G.ROOM.T.h+22, G.ASSET_ATLAS["ui_1"], {x = 2, y = 0})
@@ -12764,8 +13754,8 @@ function Game:splash_screen()
                 send = {
                     {name = 'time', ref_table = G.TIMERS, ref_value = 'REAL'},
                     {name = 'vort_speed', val = 1},
-                    {name = 'colour_1', ref_table = G.C, ref_value = 'BLUE'},
-                    {name = 'colour_2', ref_table = G.C, ref_value = 'WHITE'},
+                    {name = 'colour_1', ref_table = blue_swirl, ref_value = 'c1'},
+                    {name = 'colour_2', ref_table = blue_swirl, ref_value = 'c2'},
                     {name = 'mid_flash', val = 0},
                     {name = 'vort_offset', val = (2*90.15315131*os.time())%100000},
                 }}})
