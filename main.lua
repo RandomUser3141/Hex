@@ -2404,6 +2404,46 @@ SMODS.Enhancement{
 
 
 
+
+local HEX_ENHANCEMENT_POOL_EXCLUDE = {
+    ["m_" .. mod.prefix .. "_crystal"] = true,
+    ["m_" .. mod.prefix .. "_platinum"] = true,
+    ["m_" .. mod.prefix .. "_ruby"] = true,
+    ["m_" .. mod.prefix .. "_sapphire"] = true,
+    ["m_" .. mod.prefix .. "_topaz"] = true,
+    ["m_" .. mod.prefix .. "_diamond"] = true,
+}
+
+local hex_old_pseudorandom_element = pseudorandom_element
+
+function pseudorandom_element(_t, seed)
+    -- Detect "this is the Enhanced pool" by looking at what's actually
+    -- IN the table, rather than comparing table identity against
+    -- G.P_CENTER_POOLS.Enhanced -- if Steamodded ever hands Familiar/
+    -- Grim/Incantation/Shadow a rebuilt/derived table instead of the
+    -- literal same object, an identity check silently never matches
+    -- and nothing gets filtered.
+    if type(_t) == "table" and #_t > 0 and type(_t[1]) == "table" and _t[1].set == "Enhanced" then
+        local filtered = {}
+        for _, center in ipairs(_t) do
+            if not HEX_ENHANCEMENT_POOL_EXCLUDE[center.key] then
+                filtered[#filtered + 1] = center
+            end
+        end
+
+        if #filtered > 0 then
+            return hex_old_pseudorandom_element(filtered, seed)
+        end
+    end
+
+    return hex_old_pseudorandom_element(_t, seed)
+end
+
+
+
+
+
+
 local function hex_edition_context_ok(context)
     if context.post_joker then
         return true
@@ -3699,6 +3739,33 @@ end
 
 
 
+-- Applies this edition's own extra_cost onto a card's shop price. The
+-- five custom editions (Prismatic/Chromatic/Brilliant/Radiant/Empowered)
+-- are rolled onto Jokers via card:set_edition *after* old_create_card has
+-- already finished computing the card's shop cost -- vanilla's own cost
+-- calculation only ever accounts for whatever edition was already present
+-- at that point, so our own editions' extra_cost fields were being
+-- silently ignored. This adds the missing amount directly, then forces
+-- the shop price display to refresh via card:set_cost() if it exists.
+local function hex_apply_edition_cost(card, edition_key)
+    local center = G.P_CENTERS["e_" .. edition_key]
+    if not (card and center) then return end
+
+    card.cost = (card.cost or 0) + (center.extra_cost or 0)
+
+    if card.set_cost then
+        card:set_cost()
+    end
+end
+
+
+
+
+
+
+
+
+
 -- Base chance for an individual shop consumable slot to be replaced with
 -- a Star card instead, once Hypernova has been bought. Kept independent
 -- of HEX_STAR_PACK_CHANCE (packs show several cards at once; the shop
@@ -3774,30 +3841,35 @@ function create_card(_type, area, legendary, _rarity, skip_materialize, soulable
 
 
     if _type == "Joker" and pseudorandom(mod.prefix .. "_prismatic_joker") < 0.005 then
-    card:set_edition({
-        [mod.prefix .. "_prismatic"] = true
-    }, true)
+        card:set_edition({
+            [mod.prefix .. "_prismatic"] = true
+        }, true)
+        hex_apply_edition_cost(card, mod.prefix .. "_prismatic")
     end
- 
+
     if _type == "Joker" and pseudorandom(mod.prefix .. "_chromatic_joker") < 0.01 then
-    card:set_edition({
-        [mod.prefix .. "_chromatic"] = true
-    }, true)
+        card:set_edition({
+            [mod.prefix .. "_chromatic"] = true
+        }, true)
+        hex_apply_edition_cost(card, mod.prefix .. "_chromatic")
     end
     if _type == "Joker" and pseudorandom(mod.prefix .. "_brilliant_joker") < 0.005 then
-    card:set_edition({
-        [mod.prefix .. "_brilliant"] = true
-    }, true)
+        card:set_edition({
+            [mod.prefix .. "_brilliant"] = true
+        }, true)
+        hex_apply_edition_cost(card, mod.prefix .. "_brilliant")
     end
     if _type == "Joker" and pseudorandom(mod.prefix .. "_radiant_joker") < 0.0001 then
-    card:set_edition({
-        [mod.prefix .. "_radiant"] = true
-    }, true)
+        card:set_edition({
+            [mod.prefix .. "_radiant"] = true
+        }, true)
+        hex_apply_edition_cost(card, mod.prefix .. "_radiant")
     end
     if _type == "Joker" and pseudorandom(mod.prefix .. "_empowered_joker") < 0.00001 then
-    card:set_edition({
-        [mod.prefix .. "_empowered"] = true
-    }, true)
+        card:set_edition({
+            [mod.prefix .. "_empowered"] = true
+        }, true)
+        hex_apply_edition_cost(card, mod.prefix .. "_empowered")
     end
 
     -- Negative Deck: while selected, give Jokers an extra, independent
@@ -4994,7 +5066,7 @@ SMODS.Joker{
         text = {
             "This Joker gains {X:mult,C:white}X0.25{} Mult",
             "every bonus card scored",
-            "(Currently {X:mult,C:white}X#1#{} Mult)"
+            "{C:inactive}(Currently {}{X:mult,C:white}X#1#{}{C:inactive} Mult){}"
         }
     },
     config = { extra = { Xmult = big(1), Xmult_gain = big(0.25) } },
@@ -5041,7 +5113,7 @@ SMODS.Joker{
         text = {
             "Gains times {X:mult,C:white}X1.5{} Mult",
             "when selling a {C:rare}Rare{} Joker", 
-            "(Currently {X:mult,C:white}X#1#{} Mult)"
+            "{C:inactive}(Currently {}{X:mult,C:white}X#1#{}{C:inactive} Mult){}"
         }
     },
 
@@ -5100,30 +5172,6 @@ SMODS.Joker{
 }
 
 SMODS.Joker{
-    key = "royal_family",
-
-    loc_txt = {
-        name = "Royal Family",
-        text = {
-            "All cards count as kings",
-        }
-    },
-
-    atlas = "HexJokers",
-    pos = {x = 7, y = 0},
-
-    rarity = 3,
-    cost = 8,
-
-    unlocked = true,
-    discovered = true,
-
-    blueprint_compat = false,
-    eternal_compat = true,
-
-}
-
-SMODS.Joker{
     key = "the_monolith",
 
     loc_txt = {
@@ -5131,7 +5179,7 @@ SMODS.Joker{
         text = {
             "Gain {C:purple}+1{} additional",
             "{C:purple}Hex{} point whenever",
-            "you {C:purple}Hex{} a Joker",
+            "a joker is {C:purple}Hexed{}",
         }
     },
 
@@ -5158,7 +5206,7 @@ SMODS.Joker{
             "This Joker gains {X:mult,C:white}X1{} Mult",
             "every time a",
             "{C:attention}Full House{} is played",
-            "(Currently {X:mult,C:white}X#1#{} Mult)"
+            "{C:inactive}(Currently {}{X:mult,C:white}X#1#{}{C:inactive} Mult){}"
         }
     },
     config = { extra = { Xmult = big(1), Xmult_gain = big(1) } },
@@ -5347,7 +5395,7 @@ SMODS.Joker{
         text = {
             "At the start of each round,",
             "{C:attention}draw the entire deck{}",
-            "into your hand",
+            "into hand",
         }
     },
 
@@ -5559,7 +5607,6 @@ SMODS.Joker{
     end,
 }
 
-
 -- Endless Abyss: grants a flat +99,995 Joker slots while owned, using the
 -- same add_to_deck/remove_from_deck lifecycle Steamodded Jokers get (the
 -- same pair Inaccessible's add_to_deck already uses elsewhere in this
@@ -5574,18 +5621,18 @@ SMODS.Joker{
     loc_txt = {
         name = "Endless Abyss",
         text = {
-            "Gives {C:divine}Infinite{}",
+            "Gives {C:transcendental}Infinite{}",
             "{C:attention}Joker slots{}",
         }
     },
 
-    rarity = "hex_divine",
+    rarity = "hex_transcendental",
     in_pool = function(self) return false end, -- hidden/unlock-only rarity, like the other Divine jokers
 
     atlas = "HexJokers",
     pos = { x = 5, y = 0 }, -- placeholder art slot shared with the other undrawn Divine/Transcendental jokers
 
-    cost = 1e100,
+    cost = 100000,
     unlocked = true,
     discovered = true,
     blueprint_compat = false,
@@ -5599,6 +5646,7 @@ SMODS.Joker{
         G.jokers.config.card_limit = G.jokers.config.card_limit - 99995
     end,
 }
+
 
 SMODS.Joker{
     key = "oracle",
@@ -11700,8 +11748,8 @@ SMODS.Consumable{
             "{C:dark_red}Negative{} {C:star}Star{} cards",
             "at the {C:attention}end of every round{}",
             "{C:inactive}(#1# in 10 chance each of being{}",
-            "{C:inactive}a {C:galaxy}Galaxy{} card instead){}",
-            "{C:inactive}(Currently +#2# per round, stacks){}",
+            "{C:inactive}a Galaxy card instead){}",
+            "{C:inactive}(Currently +#2# per round){}",
         }
     },
 
