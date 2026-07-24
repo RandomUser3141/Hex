@@ -314,6 +314,7 @@ local R_HEX_ABSOLUTE = SMODS.Rarity{
 
 
 
+
 -- ============================================================
 -- Custom Poker Hands: Three Pair / Flush Three Pair / Four Pair /
 -- Flush Four Pair
@@ -3684,13 +3685,25 @@ local HEX_GALAXY_PACK_CHANCE = 1 / 66
 local HEX_GALAXY_IN_STARPACK_CHANCE = 1 / 33
 local HEX_SMC_CENTER_KEY = "c_" .. mod.prefix .. "_small_magellanic_cloud"
 local HEX_LMC_CENTER_KEY = "c_" .. mod.prefix .. "_large_magellanic_cloud"
-
 local function hex_get_galaxy_centers()
     local out = {}
 
     for _, center in pairs(G.P_CENTERS) do
         if center.set == "galaxy" then
             local skip = false
+
+            -- Respect each center's own in_pool -- this is what actually
+            -- catches Sculptor Galaxy (in_pool = false once Astral is
+            -- unlocked) and generically covers any future single-use
+            -- unlock card the same way, instead of needing a new
+            -- hardcoded key check added here every time. Small/Large
+            -- Magellanic Cloud's own in_pool functions already say the
+            -- exact same thing the manual checks below say, so this
+            -- alone would cover those too -- the manual checks are kept
+            -- as a redundant safety net rather than removed.
+            if center.in_pool and not center.in_pool(center) then
+                skip = true
+            end
 
             if center.key == HEX_SMC_CENTER_KEY
             and G.GAME and G.GAME.hex_smc_used then
@@ -3840,6 +3853,59 @@ end
 
 
 
+-- Combines every active Negative-edition boost into a single multiplier
+-- over the baseline rate (HEX_ALTAIR_BASE_RATE), rather than rolling
+-- each source independently. Negative Deck's flat HEX_NEGATIVE_DECK_RATE
+-- is expressed as its own multiplier over the baseline so it combines on
+-- the same footing as Altair/Negative Bunch/Negative Cluster.
+local function hex_negative_boost_multiplier()
+    local mult = 1
+
+    if hex_negative_deck_selected() then
+        mult = mult * (HEX_NEGATIVE_DECK_RATE / HEX_ALTAIR_BASE_RATE)
+    end
+
+    if G.GAME and (G.GAME.hex_altair_mult or 1) > 1 then
+        mult = mult * (G.GAME.hex_altair_mult or 1)
+    end
+
+    if G.GAME and G.GAME.hex_negative_bunch_unlocked then
+        mult = mult * 2
+    end
+
+    if G.GAME and G.GAME.hex_negative_cluster_unlocked then
+        mult = mult * 3
+    end
+
+    return mult
+end
+
+-- Applies a single combined roll for Negative Deck / Altair / Negative
+-- Bunch / Negative Cluster, using hex_negative_boost_multiplier() above
+-- rather than four separate independent rolls. Only fires if the card
+-- doesn't already have an edition, and only if at least one of the four
+-- sources is actually active (mult > 1) -- otherwise there's nothing to
+-- roll for. Called from both create_card (covers Judgement etc.) and
+-- the CardArea:emplace hook below (covers shop-added Jokers, which
+-- don't reliably route through create_card -- same category of quirk
+-- Hypernova's own Star-card injection hit).
+local function hex_apply_negative_boosts(card)
+    if not (card and card.edition == nil) then return end
+
+    local mult = hex_negative_boost_multiplier()
+    if mult <= 1 then return end
+
+    local chance = math.min(1, HEX_ALTAIR_BASE_RATE * mult)
+
+    if pseudorandom(pseudoseed(mod.prefix .. "_negative_boost")) < chance then
+        card:set_edition({ negative = true }, true)
+    end
+end
+
+
+
+
+
 
 -- Base chance for an individual shop consumable slot to be replaced with
 -- a Star card instead, once Hypernova has been bought. Kept independent
@@ -3860,31 +3926,39 @@ local HEX_STAR_SHOP_CHANCE = 1 / 10
 local old_cardarea_emplace_hypernova = CardArea.emplace
 
 function CardArea:emplace(card, ...)
-    if self == G.shop_jokers
-    and card and card.ability and card.ability.set
-    and (card.ability.set == "Tarot" or card.ability.set == "Planet" or card.ability.set == "Spectral")
-    and G.GAME and G.GAME.hex_hypernova_unlocked
-    and pseudorandom(pseudoseed(mod.prefix .. "_hypernova_shop")) < HEX_STAR_SHOP_CHANCE then
+    if self == G.shop_jokers and card and card.ability and card.ability.set then
 
-        local stars = hex_get_star_centers()
-        if #stars > 0 then
-            local chosen_key = stars[math.random(#stars)].key
-            local chosen_center = G.P_CENTERS[chosen_key]
+        if (card.ability.set == "Tarot" or card.ability.set == "Planet" or card.ability.set == "Spectral")
+        and G.GAME and G.GAME.hex_hypernova_unlocked
+        and pseudorandom(pseudoseed(mod.prefix .. "_hypernova_shop")) < HEX_STAR_SHOP_CHANCE then
 
-            if chosen_center then
-                card:set_ability(chosen_center, true)
+            local stars = hex_get_star_centers()
+            if #stars > 0 then
+                local chosen_key = stars[math.random(#stars)].key
+                local chosen_center = G.P_CENTERS[chosen_key]
 
-                if card.set_cost then
-                    card:set_cost()
+                if chosen_center then
+                    card:set_ability(chosen_center, true)
+
+                    if card.set_cost then
+                        card:set_cost()
+                    end
                 end
             end
+        end
+
+        -- Negative Deck / Altair / Negative Bunch / Negative Cluster:
+        -- shop-added Jokers don't reliably route through the create_card
+        -- hook the same way other card creation does (same category of
+        -- quirk the Hypernova Star injection above already works around),
+        -- so catch them here too, the reliable way.
+        if card.ability.set == "Joker" then
+            hex_apply_negative_boosts(card)
         end
     end
 
     return old_cardarea_emplace_hypernova(self, card, ...)
 end
-
-
 
 
 
@@ -3951,6 +4025,24 @@ function create_card(_type, area, legendary, _rarity, skip_materialize, soulable
     end
 
 
+    -- Heart: soul_rate/soul_set alone isn't reliably picked up by this
+    -- build's own soul-injection logic (same category of issue Star/Galaxy
+    -- cards work around by being force-injected here instead of trusting a
+    -- similar automatic mechanism) -- so Heart gets the same manual
+    -- injection treatment. Uses the center's own soul_rate field directly
+    -- as the roll chance, so Mythic Heart's voucher (which multiplies that
+    -- same field) still scales it correctly.
+    if (_type == "Spectral" or _type == "Tarot")
+    and area == G.pack_cards
+    and not forced_key then
+        local heart_center = G.P_CENTERS[HEX_HEART_CENTER_KEY]
+        if heart_center and heart_center.soul_rate
+        and pseudorandom(pseudoseed(mod.prefix .. "_heart_soul")) < heart_center.soul_rate then
+            forced_key = HEX_HEART_CENTER_KEY
+        end
+    end
+
+
     local card = old_create_card(
         _type,
         area,
@@ -3961,6 +4053,7 @@ function create_card(_type, area, legendary, _rarity, skip_materialize, soulable
         forced_key,
         key_append
     )
+
 
 
     if _type == "Joker" and pseudorandom(mod.prefix .. "_prismatic_joker") < 0.005 then
@@ -3995,66 +4088,8 @@ function create_card(_type, area, legendary, _rarity, skip_materialize, soulable
         hex_apply_edition_cost(card, mod.prefix .. "_empowered")
     end
 
-    -- Negative Deck: while selected, give Jokers an extra, independent
-    -- roll for the Negative edition at ~10x the normal chance. Vanilla's
-    -- own edition roll (which may have already given this card Foil/
-    -- Holo/Polychrome/Negative) already ran inside old_create_card
-    -- above, so we only touch cards that came out with no edition at
-    -- all, to avoid overwriting/stacking editions or double-counting
-    -- the chance.
-    if _type == "Joker"
-    and (not card.edition)
-    and hex_negative_deck_selected()
-    and pseudorandom(pseudoseed(mod.prefix .. "_negative_deck_boost")) < HEX_NEGATIVE_DECK_RATE then
-        card:set_edition({
-            ["negative"] = true
-        }, true)
-    end
-
-    -- Altair: independent roll, separate from (and stacking with) both
-    -- vanilla's own edition roll above and the Negative Deck roll just
-    -- above this -- only fires if the card still has no edition at all,
-    -- for the same overwrite/double-count reasons those two guard on
-    -- that. hex_altair_mult defaults to 1 (i.e. just the unmodified
-    -- baseline rate) if Altair has never been used.
-    if _type == "Joker"
-    and (not card.edition)
-    and G.GAME
-    and (G.GAME.hex_altair_mult or 1) > 1
-    and pseudorandom(pseudoseed(mod.prefix .. "_altair_boost")) < (HEX_ALTAIR_BASE_RATE * (G.GAME.hex_altair_mult or 1)) then
-        card:set_edition({
-            ["negative"] = true
-        }, true)
-    end
-
-    -- Negative Bunch: independent roll, separate from (and stacking
-    -- with) vanilla's own edition roll, Negative Deck, and Altair above
-    -- -- only fires if the card still has no edition at all, for the
-    -- same overwrite/double-count reasons those three guard on that.
-    -- Doubles HEX_ALTAIR_BASE_RATE's baseline chance, same "X2" wording
-    -- as its own description.
-    if _type == "Joker"
-    and (not card.edition)
-    and G.GAME
-    and G.GAME.hex_negative_bunch_unlocked
-    and pseudorandom(pseudoseed(mod.prefix .. "_negative_bunch_boost")) < (HEX_ALTAIR_BASE_RATE * 2) then
-        card:set_edition({
-            ["negative"] = true
-        }, true)
-    end
-
-    -- Negative Cluster: another independent roll, stacking alongside
-    -- Negative Bunch's roll just above (rather than replacing it), same
-    -- overwrite/double-count guard. Triples HEX_ALTAIR_BASE_RATE's
-    -- baseline chance.
-    if _type == "Joker"
-    and (not card.edition)
-    and G.GAME
-    and G.GAME.hex_negative_cluster_unlocked
-    and pseudorandom(pseudoseed(mod.prefix .. "_negative_cluster_boost")) < (HEX_ALTAIR_BASE_RATE * 3) then
-        card:set_edition({
-            ["negative"] = true
-        }, true)
+    if _type == "Joker" then
+        hex_apply_negative_boosts(card)
     end
 
     return card
