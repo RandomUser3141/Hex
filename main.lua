@@ -3728,7 +3728,7 @@ local function hex_get_galaxy_centers()
     return out
 end
 
-local HEX_NEBULA_IN_GALAXYPACK_CHANCE = 1 / 33
+local HEX_NEBULA_IN_GALAXYPACK_CHANCE = 1 / 25
 
 local function hex_get_nebula_centers()
     local out = {}
@@ -6484,7 +6484,7 @@ local function hex_consumable_already_owned(key)
     return false
 end
 
-local HEX_GALAXY_PACK_WEIGHT = HEX_STAR_PACK_WEIGHT / 2
+local HEX_GALAXY_PACK_WEIGHT = HEX_STAR_PACK_WEIGHT 
 local function hex_galaxy_pack_create_card(card, i)
     if i == 1 then
         card.hex_galaxy_pack_picked = {}
