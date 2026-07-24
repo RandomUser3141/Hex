@@ -5797,11 +5797,11 @@ SMODS.Joker{
     eternal_compat = true,
 
     add_to_deck = function(self, card, from_debuff)
-        G.jokers.config.card_limit = G.jokers.config.card_limit + 99995
+        G.jokers.config.card_limit = G.jokers.config.card_limit + 999995
     end,
 
     remove_from_deck = function(self, card, from_debuff)
-        G.jokers.config.card_limit = G.jokers.config.card_limit - 99995
+        G.jokers.config.card_limit = G.jokers.config.card_limit - 999995
     end,
 }
 
